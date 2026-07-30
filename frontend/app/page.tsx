@@ -47,7 +47,7 @@ function monthKeyFromDate(date: string) {
 
 function monthLabel(month: string) {
   const parsed = new Date(`${month}-01T00:00:00`);
-  return new Intl.DateTimeFormat('ar-EG', { month: 'long', year: 'numeric' }).format(parsed);
+  return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(parsed);
 }
 
 function shiftMonth(month: string, delta: number) {
@@ -266,42 +266,38 @@ export default function HomePage() {
     return (
       <main className="page-shell auth-page">
         <section className="auth-card">
-          <div>
+          <div className="hero-copy">
             <p className="eyebrow">El-Wekala Curtains</p>
-            <h1>حسابات المحل اليومية</h1>
-            <p className="lead">
-              اعمل user جديد بباسورد قوي، وبعد تسجيل الدخول هتلاقي calendar جميل يوضح الأيام المفتوحة والمقفولة، مع
-              تسجيل البيعات والفلوس التانية في نفس اليوم.
-            </p>
+            <h1>{authMode === 'register' ? 'إنشاء' : 'تسجيل دخول'}</h1>
           </div>
 
           <div className="auth-switch">
-            <button className={authMode === 'register' ? 'chip active' : 'chip'} onClick={() => setAuthMode('register')}>
-              create user
+            <button
+              className={authMode === 'login' ? 'chip active' : 'chip'}
+              onClick={() => setAuthMode('login')}
+            >
+              تسجيل دخول
             </button>
-            <button className={authMode === 'login' ? 'chip active' : 'chip'} onClick={() => setAuthMode('login')}>
-              login
+            <button
+              className={authMode === 'register' ? 'chip active' : 'chip'}
+              onClick={() => setAuthMode('register')}
+            >
+              إنشاء
             </button>
           </div>
 
           <div className="form-stack">
             <label className="field">
               <span>اسم المستخدم</span>
-              <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="مثال: bebonageh68" />
+              <input value={username} onChange={(event) => setUsername(event.target.value)} />
             </label>
             <label className="field">
-              <span>كلمة المرور القوية</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="8 أحرف على الأقل + أرقام"
-              />
+              <span>كلمة المرور</span>
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
             </label>
-            <p className="help-text">لازم الباسورد يكون 8 حروف أو أكثر ويحتوي على حروف وأرقام.</p>
             {authError ? <p className="error-text">{authError}</p> : null}
             <button className="primary-button" onClick={handleAuthSubmit} disabled={authLoading}>
-              {authLoading ? 'جارٍ التنفيذ...' : authMode === 'register' ? 'إنشاء الحساب' : 'دخول'}
+              {authLoading ? '...' : authMode === 'register' ? 'موافقة' : 'تأكيد'}
             </button>
           </div>
         </section>
@@ -313,39 +309,34 @@ export default function HomePage() {
     <main className="dashboard-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">El-Wekala Curtains</p>
           <h1>مرحبًا {user?.username ?? ''}</h1>
         </div>
         <div className="topbar-actions">
-          <span className="topbar-badge">API: {apiUrl}</span>
+          <span className="topbar-badge">{apiUrl}</span>
           <button className="secondary-button" onClick={logout}>
-            logout
+            خروج
           </button>
         </div>
       </header>
 
       <section className="hero-card dashboard-hero">
         <div className="hero-copy">
-          <p className="eyebrow">calendar</p>
-          <h2>الأيام اللي فاتت مفتوحة، واللي جاية مقفولة</h2>
-          <p className="lead">
-            اختار يوم من التقويم، وسجل البيعات والخصومات أو الإضافات. كل يوم ليه حساب منفصل، وإجمالي اليوم بيتحسب
-            تلقائيًا في آخر الصفحة.
-          </p>
+          <p className="eyebrow">التقويم</p>
+          <h2>مفتوح / مقفول</h2>
         </div>
 
         <div className="month-toolbar">
-          <button className="chip" onClick={() => setSelectedMonth((current) => shiftMonth(current, -1))}>
-            السابق
+          <button className="month-arrow" onClick={() => setSelectedMonth((current) => shiftMonth(current, -1))}>
+            ‹
           </button>
           <div className="month-title">{monthLabel(selectedMonth)}</div>
-          <button className="chip" onClick={() => setSelectedMonth((current) => shiftMonth(current, 1))}>
-            التالي
+          <button className="month-arrow" onClick={() => setSelectedMonth((current) => shiftMonth(current, 1))}>
+            ›
           </button>
         </div>
 
         <div className="calendar-grid">
-          {['أحد', 'اثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت'].map((day) => (
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
             <div key={day} className="weekday-cell">
               {day}
             </div>
@@ -375,7 +366,7 @@ export default function HomePage() {
                 disabled={locked}
               >
                 <span className="day-number">{slot.day}</span>
-                <span className="day-status">{locked ? 'مقفول' : day ? 'مفتوح' : 'جاهز'}</span>
+                <span className="day-status">{locked ? 'مقفول' : 'مفتوح'}</span>
                 <strong>{currency.format(day?.dayTotal ?? 0)}</strong>
               </button>
             );
@@ -387,8 +378,8 @@ export default function HomePage() {
         <article className="panel-card">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">إنشاء بيعة</p>
-              <h3>الصنف والسعر في كل عمود</h3>
+              <p className="eyebrow">إنشاء</p>
+              <h3>بيعة</h3>
             </div>
             <button className="secondary-button" onClick={() => void addSale()} disabled={selectedLocked || saleLoading}>
               إنشاء بيعة
@@ -412,15 +403,15 @@ export default function HomePage() {
           <div className="form-stack compact">
             <label className="field">
               <span>الصنف</span>
-              <input value={saleItem} onChange={(event) => setSaleItem(event.target.value)} placeholder="مثال: ستارة بلاك أوت" disabled={selectedLocked} />
+              <input value={saleItem} onChange={(event) => setSaleItem(event.target.value)} disabled={selectedLocked} />
             </label>
             <label className="field">
               <span>السعر</span>
-              <input value={salePrice} onChange={(event) => setSalePrice(event.target.value)} placeholder="مثال: 1200" inputMode="decimal" disabled={selectedLocked} />
+              <input value={salePrice} onChange={(event) => setSalePrice(event.target.value)} inputMode="decimal" disabled={selectedLocked} />
             </label>
             {saleError ? <p className="error-text">{saleError}</p> : null}
             <button className="primary-button" onClick={() => void addSale()} disabled={selectedLocked || saleLoading}>
-              {saleLoading ? 'جارٍ الحفظ...' : 'حفظ البيعة'}
+              {saleLoading ? '...' : 'موافقة'}
             </button>
           </div>
         </article>
@@ -428,8 +419,8 @@ export default function HomePage() {
         <article className="panel-card">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">فلوس تانية</p>
-              <h3>زيادة أو خصم على اليوم</h3>
+              <p className="eyebrow">موافقة</p>
+              <h3>فلوس تانية</h3>
             </div>
             <button className="secondary-button" onClick={() => void addAdjustment()} disabled={selectedLocked || adjustLoading}>
               فلوس تانية
@@ -448,15 +439,15 @@ export default function HomePage() {
           <div className="form-stack compact">
             <label className="field">
               <span>كام</span>
-              <input value={adjustAmount} onChange={(event) => setAdjustAmount(event.target.value)} placeholder="مثال: 250" inputMode="decimal" disabled={selectedLocked} />
+              <input value={adjustAmount} onChange={(event) => setAdjustAmount(event.target.value)} inputMode="decimal" disabled={selectedLocked} />
             </label>
             <label className="field">
               <span>ليه</span>
-              <input value={adjustReason} onChange={(event) => setAdjustReason(event.target.value)} placeholder="مثال: مصاريف مواصلات" disabled={selectedLocked} />
+              <input value={adjustReason} onChange={(event) => setAdjustReason(event.target.value)} disabled={selectedLocked} />
             </label>
             {adjustError ? <p className="error-text">{adjustError}</p> : null}
             <button className="primary-button" onClick={() => void addAdjustment()} disabled={selectedLocked || adjustLoading}>
-              {adjustLoading ? 'جارٍ الحفظ...' : 'تسجيل الحركة'}
+              {adjustLoading ? '...' : 'موافقة'}
             </button>
           </div>
 
@@ -480,19 +471,19 @@ export default function HomePage() {
 
       <section className="summary-grid">
         <article className="metric-card">
-          <span>تاريخ اليوم المختار</span>
+          <span>اليوم</span>
           <strong>{selectedDate}</strong>
         </article>
         <article className="metric-card">
-          <span>إجمالي اليوم</span>
+          <span>اليوم</span>
           <strong>{currency.format(dailyTotal)}</strong>
         </article>
         <article className="metric-card">
-          <span>إجمالي الشهر المعروض</span>
+          <span>الشهر</span>
           <strong>{currency.format(monthTotal)}</strong>
         </article>
         <article className={selectedLocked ? 'metric-card locked' : 'metric-card open'}>
-          <span>حالة اليوم</span>
+          <span>الحالة</span>
           <strong>{selectedLocked ? 'مقفول' : 'مفتوح'}</strong>
         </article>
       </section>

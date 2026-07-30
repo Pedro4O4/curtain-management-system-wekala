@@ -3,13 +3,12 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'El-Wekala Curtains',
-  description: 'Modern curtain showroom website built with Next.js and NestJS'
+  title: 'El-Wekala Curtains'
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="ar" dir="rtl">
       <body>{children}</body>
     </html>
   );
