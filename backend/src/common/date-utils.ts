@@ -1,5 +1,13 @@
 export function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Cairo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 export function isFutureDate(date: string) {
@@ -7,11 +15,21 @@ export function isFutureDate(date: string) {
 }
 
 export function isValidIsoDate(date: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(date);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return false;
+  }
+
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
 }
 
 export function isValidMonth(month: string) {
-  return /^\d{4}-\d{2}$/.test(month);
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return false;
+  }
+
+  const monthNumber = Number(month.slice(5, 7));
+  return monthNumber >= 1 && monthNumber <= 12;
 }
 
 export function monthDates(month: string) {

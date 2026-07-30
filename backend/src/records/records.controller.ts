@@ -31,25 +31,35 @@ export class RecordsController {
   addSale(
     @Headers('authorization') authorization: string | undefined,
     @Param('date') date: string,
-    @Body() body: { item: string; price: number }
+    @Body() body: { item?: unknown; price?: unknown } | undefined
   ) {
     const user = this.authService.verifyAuthorizationHeader(authorization);
-    return this.recordsService.addSale(user.sub, date, body.item, Number(body.price));
+    return this.recordsService.addSale(user.sub, date, body?.item, body?.price);
+  }
+
+  @Post('day/:date/sales/bulk')
+  addSales(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('date') date: string,
+    @Body() body: { sales?: unknown } | undefined
+  ) {
+    const user = this.authService.verifyAuthorizationHeader(authorization);
+    return this.recordsService.addSales(user.sub, date, body?.sales);
   }
 
   @Post('day/:date/adjustments')
   addAdjustment(
     @Headers('authorization') authorization: string | undefined,
     @Param('date') date: string,
-    @Body() body: { amount: number; reason: string; direction: '+' | '-' }
+    @Body() body: { amount?: unknown; reason?: unknown; direction?: unknown } | undefined
   ) {
     const user = this.authService.verifyAuthorizationHeader(authorization);
     return this.recordsService.addAdjustment(
       user.sub,
       date,
-      Number(body.amount),
-      body.reason,
-      body.direction === '-' ? '-' : '+'
+      body?.amount,
+      body?.reason,
+      body?.direction
     );
   }
 }

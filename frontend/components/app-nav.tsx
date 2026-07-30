@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ReactNode, useEffect } from 'react';
+import { MouseEvent, ReactNode, useEffect } from 'react';
 import { useSession } from './use-session';
 
 type AppNavProps = {
@@ -10,9 +10,8 @@ type AppNavProps = {
 };
 
 const links = [
-  { href: '/all', label: 'Dashboard', icon: '◫' },
-  { href: '/create', label: 'Create', icon: '＋' },
-  { href: '/detailes/sales', label: 'Details', icon: '☰' },
+  { href: '/all', label: 'الرئيسية', icon: '⌂' },
+  { href: '/detailes/sales', label: 'سجل المبيعات', icon: '▤' },
 ];
 
 export function AppNav({ children }: AppNavProps) {
@@ -28,7 +27,7 @@ export function AppNav({ children }: AppNavProps) {
 
   if (!ready) {
     return (
-      <main className="dashboard-shell">
+      <main className="app-shell app-loading">
         <div className="skeleton skeleton-line lg" />
         <div className="skeleton skeleton-line md" />
       </main>
@@ -44,20 +43,35 @@ export function AppNav({ children }: AppNavProps) {
     router.replace('/login');
   }
 
+  function handleNavigation(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    if (href !== '/detailes/sales') return;
+
+    const selectedDate = window.localStorage.getItem('el-wekala-selected-date');
+    if (!selectedDate) return;
+
+    event.preventDefault();
+    router.push(`${href}?date=${selectedDate}`);
+  }
+
   // Active page info
   const activePage = links.find(l => l.href === pathname);
-  const title = activePage?.label ?? 'El-Wekala';
+  const title = pathname === '/create'
+    ? 'قطاعي'
+    : pathname === '/details'
+      ? 'ملخص اليوم'
+      : activePage?.label ?? 'الوكالة للستائر';
   const subtitles: Record<string, string> = {
-    '/all': 'Calendar overview & monthly tracking',
-    '/create': 'Add new sales entries',
-    '/detailes/sales': 'View every saved sale',
+    '/all': 'سجّل يومك بسهولة ومن مكان واحد',
+    '/create': 'بيع سريع وحركات الخزنة',
+    '/details': 'المبيعات والحركات النقدية',
+    '/detailes/sales': 'كل المبيعات التي تم تسجيلها',
   };
 
   return (
-    <main className="dashboard-shell">
+    <main className="app-shell">
       <header className="topbar">
         <div className="brand-section">
-          <span className="brand-eyebrow">El-Wekala Curtains</span>
+          <span className="brand-eyebrow">الوكالة للستائر</span>
           <h1 className="page-title">{title}</h1>
           {subtitles[pathname] && <p className="page-subtitle">{subtitles[pathname]}</p>}
         </div>
@@ -69,17 +83,18 @@ export function AppNav({ children }: AppNavProps) {
             </div>
           )}
           <button className="btn btn-secondary btn-sm btn-pill" onClick={handleLogout} type="button">
-            Logout
+            خروج
           </button>
         </div>
       </header>
 
-      <nav className="nav-strip" aria-label="Main navigation">
+      <nav className="nav-strip" aria-label="التنقل الرئيسي">
         {links.map((link) => (
           <Link
             key={link.href}
             className={pathname === link.href ? 'nav-link active' : 'nav-link'}
             href={link.href}
+            onClick={(event) => handleNavigation(event, link.href)}
           >
             <span>{link.icon}</span>
             {link.label}
@@ -87,7 +102,7 @@ export function AppNav({ children }: AppNavProps) {
         ))}
       </nav>
 
-      {children}
+      <div className="app-content">{children}</div>
     </main>
   );
 }

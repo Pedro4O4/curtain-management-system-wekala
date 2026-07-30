@@ -1,180 +1,210 @@
 "use client";
 
-import { useEffect, useState, Suspense } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AppNav } from '../../components/app-nav';
 import { useSession } from '../../components/use-session';
 import { useToast } from '../../components/toast-context';
-import { TableSkeleton, StatsSkeleton } from '../../components/skeleton';
-import { 
-  DayResponse, 
-  todayIsoDate, 
-  apiRequest, 
-  currency
-} from '../../lib/sales';
+import { apiRequest, currency, DayResponse, isValidIsoDate, todayIsoDate } from '../../lib/sales';
 
 function DetailsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { token, ready } = useSession();
   const { showToast } = useToast();
-
-  const [date, setDate] = useState<string>('');
+  const [date, setDate] = useState('');
   const [dayData, setDayData] = useState<DayResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const dayRequestId = useRef(0);
 
   useEffect(() => {
-    let initialDate = searchParams.get('date');
-    if (!initialDate) {
-      initialDate = localStorage.getItem('el-wekala-last-sale-date') || todayIsoDate();
+    const requestedDate = searchParams.get('date');
+    const today = todayIsoDate();
+    const nextDate = requestedDate && isValidIsoDate(requestedDate) && requestedDate <= today ? requestedDate : today;
+    if (nextDate !== date) {
+      dayRequestId.current += 1;
+      setDayData(null);
+      setLoadError(null);
+      setLoading(true);
+      setDate(nextDate);
     }
-    setDate(initialDate);
   }, [searchParams]);
 
   useEffect(() => {
-    if (!date) return;
-    localStorage.setItem('el-wekala-last-sale-date', date);
-  }, [date]);
-
-  useEffect(() => {
     if (!token || !date) return;
-
-    let isMounted = true;
+    let active = true;
+    const requestId = ++dayRequestId.current;
     setLoading(true);
+    setDayData(null);
+    setLoadError(null);
 
     apiRequest<DayResponse>(`/records/day/${date}`, token)
       .then((data) => {
-        if (isMounted) {
-          setDayData(data);
-          setLoading(false);
+        if (active && dayRequestId.current === requestId) setDayData(data);
+      })
+      .catch((error: Error) => {
+        if (active && dayRequestId.current === requestId) {
+          const message = error.message || 'تعذّر تحميل حسابات اليوم';
+          setLoadError(message);
+          showToast(message, 'error');
         }
       })
-      .catch((err) => {
-        if (isMounted) {
-          showToast(err.message || 'Failed to load day data', 'error');
-          setLoading(false);
-        }
+      .finally(() => {
+        if (active && dayRequestId.current === requestId) setLoading(false);
       });
 
     return () => {
-      isMounted = false;
+      active = false;
     };
-  }, [token, date, showToast]);
+  }, [date, reloadKey, showToast, token]);
 
-  if (!ready) return null;
-  if (!token) return null;
+  function changeDate(nextDate: string) {
+    if (!isValidIsoDate(nextDate) || nextDate > todayIsoDate()) {
+      showToast('اختر تاريخًا صحيحًا لا يتجاوز اليوم.', 'info');
+      return false;
+    }
 
-  const isLocked = date > todayIsoDate();
+    if (nextDate === date) return true;
+
+    dayRequestId.current += 1;
+    setDayData(null);
+    setLoadError(null);
+    setLoading(true);
+    setDate(nextDate);
+    return true;
+  }
+
+  if (!ready || !token) return null;
 
   return (
-    <div className="dashboard-shell">
-      <div className="panel-card mb-6">
-        <div className="panel-header flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="panel-title">Details for {date}</h2>
-          <div className="flex gap-2 items-center">
-            <input 
-              type="date" 
-              className="form-input date-picker" 
-              max={todayIsoDate()}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-            <button className="btn btn-secondary" onClick={() => router.push('/all')}>Back to Calendar</button>
-            {!isLocked && <button className="btn btn-primary" onClick={() => router.push(`/create`)}>Add Sales</button>}
-          </div>
-        </div>
-        
-        {loading ? (
-          <StatsSkeleton />
-        ) : (
-          <div className="stats-grid mt-4">
-            <div className="stat-card highlight">
-              <div className="stat-label">Day Total</div>
-              <div className="stat-value">{currency.format(dayData?.dayTotal || 0)}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Sales Total</div>
-              <div className="stat-value">{currency.format(dayData?.saleTotal || 0)}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Adjustments Total</div>
-              <div className="stat-value">{currency.format(dayData?.adjustmentTotal || 0)}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Status</div>
-              <div className={`stat-value badge ${isLocked ? 'badge-locked' : 'badge-success'}`}>
-                {isLocked ? 'Locked' : 'Open'}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="panel-card mb-6">
-        <div className="panel-header">
-          <h3 className="panel-title">Sales</h3>
-        </div>
-        <div className="data-table scrollable">
-          <div className="table-header cols-2">
-            <div>Item</div>
-            <div>Price</div>
-          </div>
-          {loading ? (
-            <TableSkeleton />
-          ) : (
-            dayData?.sales.length === 0 ? (
-              <div className="table-empty empty-state">
-                <div className="empty-text">No sales recorded</div>
-              </div>
-            ) : (
-              dayData?.sales.map((sale, i) => (
-                <div key={i} className="table-row cols-2">
-                  <div>{sale.item}</div>
-                  <div>{currency.format(sale.price)}</div>
-                </div>
-              ))
-            )
-          )}
+    <section className="details-page">
+      <div className="details-toolbar card-surface">
+        <button className="back-button" onClick={() => router.push('/all')} type="button">
+          <span aria-hidden="true">›</span>
+          الرئيسية
+        </button>
+        <label className="date-control compact">
+          <span>تاريخ الحساب</span>
+          <input
+            aria-label="تاريخ الحساب"
+            className="form-input"
+            dir="ltr"
+            max={todayIsoDate()}
+            onChange={(event) => {
+              if (!changeDate(event.target.value)) event.currentTarget.value = date;
+            }}
+            type="date"
+            value={date}
+          />
+        </label>
+        <div className="details-actions">
+          <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/create?mode=adjustment&date=${date}`)} type="button">خصم أو زيادة</button>
+          <button className="btn btn-primary btn-sm" onClick={() => router.push(`/create?mode=sale&date=${date}`)} type="button">+ بيعة</button>
         </div>
       </div>
 
-      <div className="panel-card">
-        <div className="panel-header">
-          <h3 className="panel-title">Adjustments</h3>
+      <div className="details-heading">
+        <span className="eyebrow">ملخص اليوم</span>
+        <h2>{date || '...'}</h2>
+      </div>
+
+      {loading ? (
+        <div className="details-loading card-surface">جارٍ تحميل الحسابات...</div>
+      ) : loadError ? (
+        <div className="summary-error card-surface">
+          <p>تعذّر تحميل حسابات هذا اليوم.</p>
+          <button className="text-button" onClick={() => setReloadKey((value) => value + 1)} type="button">إعادة المحاولة</button>
         </div>
-        <div className="data-table scrollable">
-          <div className="table-header cols-3">
-            <div>Amount</div>
-            <div>Reason</div>
-            <div>Type</div>
+      ) : (
+        <>
+          <div className="daily-stats">
+            <div className="daily-stat primary"><span>صافي اليوم</span><strong>{currency.format(dayData?.dayTotal ?? 0)}</strong></div>
+            <div className="daily-stat"><span>إجمالي البيع</span><strong>{currency.format(dayData?.saleTotal ?? 0)}</strong></div>
+            <div className="daily-stat"><span>دخل / خرج مستقل</span><strong className={(dayData?.adjustmentTotal ?? 0) < 0 ? 'amount-negative' : 'amount-positive'}>{currency.format(dayData?.adjustmentTotal ?? 0)}</strong></div>
+            <div className="daily-stat"><span>عدد البيعات</span><strong>{dayData?.receipts.length ?? 0}</strong></div>
           </div>
-          {loading ? (
-            <TableSkeleton />
-          ) : (
-            dayData?.adjustments.length === 0 ? (
-              <div className="table-empty empty-state">
-                <div className="empty-text">No adjustments</div>
+
+          <article className="records-card card-surface">
+            <div className="records-heading">
+              <div>
+                <span className="eyebrow">المبيعات</span>
+                <h3>بيوع اليوم</h3>
+              </div>
+              <span className="records-count">{dayData?.receipts.length ?? 0}</span>
+            </div>
+            {!dayData?.receipts.length ? (
+              <div className="empty-records">
+                <p>لا توجد مبيعات مسجلة لهذا اليوم.</p>
+                <button className="text-button" onClick={() => router.push(`/create?mode=sale&date=${date}`)} type="button">سجّل أول بيعة</button>
               </div>
             ) : (
-              dayData?.adjustments.map((adj, i) => (
-                <div key={i} className="table-row cols-3">
-                  <div>{currency.format(adj.amount)}</div>
-                  <div>{adj.reason}</div>
-                  <div>{adj.direction === '+' ? 'Addition' : 'Deduction'}</div>
-                </div>
-              ))
-            )
-          )}
-        </div>
-      </div>
-    </div>
+              <div className="receipt-list daily-receipt-list">
+                {dayData.receipts.map((sale, index) => (
+                  <details className="receipt-group" key={`${sale.number ?? 'legacy'}-${index}`} open>
+                    <summary className="receipt-header">
+                      <span className="receipt-number">{sale.number === null ? 'بيعة قديمة' : `بيعة رقم ${sale.number}`}</span>
+                      <span className="receipt-meta">{sale.items.length} {sale.items.length === 1 ? 'صنف' : 'أصناف'}</span>
+                      <strong>{currency.format(sale.total)}</strong>
+                      <span className="receipt-toggle" aria-hidden="true">⌄</span>
+                    </summary>
+                    <div className="receipt-items">
+                      {sale.items.map((item, itemIndex) => (
+                        <div className="receipt-item" key={`${item.item}-${itemIndex}`}>
+                          <span>{item.item}</span>
+                          <strong>{currency.format(item.price)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                ))}
+              </div>
+            )}
+          </article>
+
+          <article className="records-card card-surface">
+            <div className="records-heading">
+              <div>
+                <span className="eyebrow">الخزنة</span>
+                <h3>خصم وزيادة</h3>
+              </div>
+              <span className="records-count">{dayData?.adjustments.length ?? 0}</span>
+            </div>
+            {!dayData?.adjustments.length ? (
+              <div className="empty-records">
+                <p>لا توجد حركة نقدية مستقلة لهذا اليوم.</p>
+                <button className="text-button" onClick={() => router.push(`/create?mode=adjustment&date=${date}`)} type="button">سجّل حركة خزنة</button>
+              </div>
+            ) : (
+              <div className="records-list">
+                {dayData.adjustments.map((adjustment, index) => (
+                  <div className="record-row" key={`${adjustment.reason}-${index}`}>
+                    <span className={`movement-mark ${adjustment.direction === '+' ? 'income' : 'expense'}`} aria-label={adjustment.direction === '+' ? 'زيادة' : 'خصم'}>
+                      {adjustment.direction === '+' ? '↑' : '↓'}
+                    </span>
+                    <span className="record-label">
+                      {adjustment.reason}
+                      <small>{adjustment.direction === '+' ? 'زيادة / دخل' : 'خصم / خرج'}</small>
+                    </span>
+                    <strong className={adjustment.direction === '+' ? 'amount-positive' : 'amount-negative'}>
+                      {adjustment.direction === '+' ? '+' : '-'}{currency.format(adjustment.amount)}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </article>
+        </>
+      )}
+    </section>
   );
 }
 
 export default function DetailsPage() {
   return (
     <AppNav>
-      <Suspense fallback={<StatsSkeleton />}>
+      <Suspense fallback={<div className="page-loading">جارٍ التحميل...</div>}>
         <DetailsContent />
       </Suspense>
     </AppNav>
