@@ -26,6 +26,7 @@ function CreateContent() {
   const [selectedDate, setSelectedDate] = useState('');
   const [mode, setMode] = useState<EntryMode>('sale');
   const [saleRows, setSaleRows] = useState<SaleDraft[]>([newSaleRow()]);
+  const [paidAmount, setPaidAmount] = useState('');
   const [direction, setDirection] = useState<'+' | '-'>('+');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
@@ -118,10 +119,17 @@ function CreateContent() {
   async function saveSales(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const rowsToSave = saleRows.map((row) => ({ item: row.item.trim(), price: Number(row.price) }));
+    const totalToSave = rowsToSave.reduce((total, row) => total + (Number.isFinite(row.price) ? row.price : 0), 0);
+    const paidToSave = paidAmount === '' ? totalToSave : Number(paidAmount);
     const hasIncompleteRow = rowsToSave.some((row) => !row.item || !Number.isFinite(row.price) || row.price <= 0);
 
     if (hasIncompleteRow) {
       showToast('اكتب الصنف والسعر الصحيح في كل صف أولًا.', 'info');
+      return;
+    }
+
+    if (!Number.isFinite(paidToSave) || paidToSave < 0 || paidToSave > totalToSave) {
+      showToast('اكتب المبلغ المدفوع بشكل صحيح، ولا يمكن أن يكون أكبر من إجمالي البيعة.', 'info');
       return;
     }
 
@@ -131,13 +139,14 @@ function CreateContent() {
     try {
       const response = await apiRequest<DayResponse>(`/records/day/${selectedDate}/sales/bulk`, token, {
         method: 'POST',
-        body: JSON.stringify({ sales: rowsToSave }),
+        body: JSON.stringify({ sales: rowsToSave, paidAmount: paidToSave }),
       });
       summaryRequestId.current += 1;
       setSummary(response);
       setSummaryError(null);
       setLoadingSummary(false);
       setSaleRows([newSaleRow()]);
+      setPaidAmount('');
       showToast(
         `تم تسجيل بيعة رقم ${response.createdReceipt?.number ?? ''} بنجاح.`,
         'success'
@@ -181,6 +190,9 @@ function CreateContent() {
   }
 
   const saleTotal = saleRows.reduce((total, row) => total + (Number(row.price) || 0), 0);
+  const enteredPaidAmount = Number(paidAmount);
+  const currentPaidAmount = paidAmount === '' ? saleTotal : Number.isFinite(enteredPaidAmount) ? Math.min(Math.max(enteredPaidAmount, 0), saleTotal) : 0;
+  const currentRemainingAmount = saleTotal - currentPaidAmount;
   const today = todayIsoDate();
 
   if (!ready || !token) return null;
@@ -301,9 +313,33 @@ function CreateContent() {
               </button>
 
               <div className="entry-total">
-                <span>إجمالي البيعة</span>
-                <strong>{currency.format(saleTotal)}</strong>
+                <div>
+                  <span>إجمالي البيعة</span>
+                  <strong>{currency.format(saleTotal)}</strong>
+                </div>
+                <div>
+                  <span>المدفوع</span>
+                  <strong>{currency.format(currentPaidAmount)}</strong>
+                </div>
+                <div className={currentRemainingAmount > 0 ? 'entry-remaining' : ''}>
+                  <span>المتبقي</span>
+                  <strong>{currency.format(currentRemainingAmount)}</strong>
+                </div>
               </div>
+              <label className="form-group sale-payment-field" htmlFor="paid-amount">
+                <span className="form-label">المدفوع الآن <small>(اتركه فارغًا للدفع الكامل)</small></span>
+                <input
+                  className="form-input"
+                  dir="ltr"
+                  id="paid-amount"
+                  inputMode="decimal"
+                  min="0"
+                  onChange={(event) => setPaidAmount(event.target.value)}
+                  step="0.01"
+                  type="number"
+                  value={paidAmount}
+                />
+              </label>
               <button className="btn btn-primary confirm-button" disabled={saving} type="submit">
                 {saving ? 'جارٍ التسجيل...' : 'تأكيد وتسجيل البيعة'}
               </button>
@@ -395,7 +431,7 @@ function CreateContent() {
           ) : (
             <div className="summary-lines">
               <div><span>عدد البيعات</span><strong>{summary?.receipts.length ?? 0}</strong></div>
-              <div><span>إجمالي البيع</span><strong>{currency.format(summary?.saleTotal ?? 0)}</strong></div>
+              <div><span>المُحصّل من البيع</span><strong>{currency.format(summary?.saleTotal ?? 0)}</strong></div>
               <div><span>دخل / خرج</span><strong className={(summary?.adjustmentTotal ?? 0) < 0 ? 'amount-negative' : 'amount-positive'}>{currency.format(summary?.adjustmentTotal ?? 0)}</strong></div>
               <div className="summary-net"><span>صافي اليوم</span><strong>{currency.format(summary?.dayTotal ?? 0)}</strong></div>
             </div>

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AppNav } from '../../../components/app-nav';
 import { useSession } from '../../../components/use-session';
 import { useToast } from '../../../components/toast-context';
-import { apiRequest, currency, isValidIsoDate, SalesListResponse } from '../../../lib/sales';
+import { apiRequest, currency, isValidIsoDate, SalesListResponse, SaleReceipt, todayIsoDate } from '../../../lib/sales';
 
 function SalesHistoryContent() {
   const router = useRouter();
@@ -14,6 +14,8 @@ function SalesHistoryContent() {
   const { showToast } = useToast();
   const [salesData, setSalesData] = useState<SalesListResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [paymentAmounts, setPaymentAmounts] = useState<Record<number, string>>({});
+  const [savingPayment, setSavingPayment] = useState<number | null>(null);
   const requestedDate = searchParams.get('date');
   const selectedDate = requestedDate && isValidIsoDate(requestedDate) ? requestedDate : null;
 
@@ -53,10 +55,40 @@ function SalesHistoryContent() {
       date,
       sales,
       total: sales.reduce((sum, sale) => sum + sale.total, 0),
+      paid: sales.reduce((sum, sale) => sum + sale.paidAmount, 0),
+      remaining: sales.reduce((sum, sale) => sum + sale.remainingAmount, 0),
     }));
   }, [visibleSales]);
 
-  const visibleTotal = visibleSales.reduce((sum, sale) => sum + sale.total, 0);
+  const visiblePaidTotal = visibleSales.reduce((sum, sale) => sum + sale.paidAmount, 0);
+  const visibleRemainingTotal = visibleSales.reduce((sum, sale) => sum + sale.remainingAmount, 0);
+
+  async function savePayment(sale: SalesListResponse['sales'][number]) {
+    if (sale.number === null || !token) return;
+    const amount = Number(paymentAmounts[sale.number]);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > sale.remainingAmount) {
+      showToast('اكتب مبلغًا صحيحًا لا يزيد عن المتبقي.', 'info');
+      return;
+    }
+
+    setSavingPayment(sale.number);
+    try {
+      const updated = await apiRequest<SaleReceipt>(`/records/sales/${sale.number}/payments`, token, {
+        method: 'POST',
+        body: JSON.stringify({ amount, date: todayIsoDate() }),
+      });
+      setSalesData((current) => current ? {
+        ...current,
+        sales: current.sales.map((entry) => entry.number === sale.number ? { ...entry, ...updated } : entry),
+      } : current);
+      setPaymentAmounts((current) => ({ ...current, [sale.number!]: '' }));
+      showToast('تم تسجيل الدفعة وتحديث المتبقي.', 'success');
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'تعذّر تسجيل الدفعة.', 'error');
+    } finally {
+      setSavingPayment(null);
+    }
+  }
 
   if (!ready || !token) return null;
 
@@ -77,7 +109,8 @@ function SalesHistoryContent() {
       ) : (
         <>
           <div className="daily-stats sales-history-stats">
-            <div className="daily-stat primary"><span>إجمالي المبيعات</span><strong>{currency.format(visibleTotal)}</strong></div>
+            <div className="daily-stat primary"><span>إجمالي المُحصّل</span><strong>{currency.format(visiblePaidTotal)}</strong></div>
+            <div className="daily-stat remaining-stat"><span>إجمالي المتبقي</span><strong>{currency.format(visibleRemainingTotal)}</strong></div>
             <div className="daily-stat"><span>عدد البيعات</span><strong>{visibleSales.length}</strong></div>
           </div>
           <article className="records-card card-surface">
@@ -101,7 +134,8 @@ function SalesHistoryContent() {
                       </div>
                       <div className="day-sales-total">
                         <span>{day.sales.length} {day.sales.length === 1 ? 'بيعة' : 'بيعات'}</span>
-                        <strong>{currency.format(day.total)}</strong>
+                        <strong>{currency.format(day.paid)}</strong>
+                        {day.remaining > 0 && <small>متبقي {currency.format(day.remaining)}</small>}
                       </div>
                     </header>
                     <div className="receipt-list">
@@ -121,6 +155,38 @@ function SalesHistoryContent() {
                               </div>
                             ))}
                           </div>
+                          {!sale.legacy && (
+                            <div className="receipt-payment-status">
+                              <div>
+                                <span>المدفوع</span>
+                                <strong>{currency.format(sale.paidAmount)}</strong>
+                              </div>
+                              <div className={sale.remainingAmount > 0 ? 'remaining-due' : 'fully-paid'}>
+                                <span>{sale.remainingAmount > 0 ? 'المتبقي' : 'تم السداد'}</span>
+                                <strong>{currency.format(sale.remainingAmount)}</strong>
+                              </div>
+                            </div>
+                          )}
+                          {!sale.legacy && sale.remainingAmount > 0 && sale.number !== null && (
+                            <form className="receipt-payment-form" onSubmit={(event) => { event.preventDefault(); void savePayment(sale); }}>
+                              <label htmlFor={`payment-${sale.number}`}>تسجيل دفعة جديدة</label>
+                              <input
+                                className="form-input"
+                                dir="ltr"
+                                id={`payment-${sale.number}`}
+                                inputMode="decimal"
+                                max={sale.remainingAmount}
+                                min="0"
+                                onChange={(event) => setPaymentAmounts((current) => ({ ...current, [sale.number!]: event.target.value }))}
+                                step="0.01"
+                                type="number"
+                                value={paymentAmounts[sale.number] ?? ''}
+                              />
+                              <button className="btn btn-primary" disabled={savingPayment === sale.number} type="submit">
+                                {savingPayment === sale.number ? 'جارٍ الحفظ...' : 'تسجيل الدفعة'}
+                              </button>
+                            </form>
+                          )}
                         </details>
                       ))}
                     </div>

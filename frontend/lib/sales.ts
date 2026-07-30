@@ -25,6 +25,9 @@ export type SaleReceipt = {
   number: number | null;
   items: SaleItem[];
   total: number;
+  paidAmount: number;
+  remainingAmount: number;
+  payments: { amount: number; date: string; createdAt: string }[];
   createdAt: string;
   legacy: boolean;
 };

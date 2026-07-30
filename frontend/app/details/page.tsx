@@ -121,7 +121,7 @@ function DetailsContent() {
         <>
           <div className="daily-stats">
             <div className="daily-stat primary"><span>صافي اليوم</span><strong>{currency.format(dayData?.dayTotal ?? 0)}</strong></div>
-            <div className="daily-stat"><span>إجمالي البيع</span><strong>{currency.format(dayData?.saleTotal ?? 0)}</strong></div>
+            <div className="daily-stat"><span>المُحصّل من البيع</span><strong>{currency.format(dayData?.saleTotal ?? 0)}</strong></div>
             <div className="daily-stat"><span>دخل / خرج مستقل</span><strong className={(dayData?.adjustmentTotal ?? 0) < 0 ? 'amount-negative' : 'amount-positive'}>{currency.format(dayData?.adjustmentTotal ?? 0)}</strong></div>
             <div className="daily-stat"><span>عدد البيعات</span><strong>{dayData?.receipts.length ?? 0}</strong></div>
           </div>

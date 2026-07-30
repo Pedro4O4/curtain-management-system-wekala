@@ -41,10 +41,20 @@ export class RecordsController {
   addSales(
     @Headers('authorization') authorization: string | undefined,
     @Param('date') date: string,
-    @Body() body: { sales?: unknown } | undefined
+    @Body() body: { sales?: unknown; paidAmount?: unknown } | undefined
   ) {
     const user = this.authService.verifyAuthorizationHeader(authorization);
-    return this.recordsService.addSales(user.sub, date, body?.sales);
+    return this.recordsService.addSales(user.sub, date, body?.sales, body?.paidAmount);
+  }
+
+  @Post('sales/:number/payments')
+  addReceiptPayment(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('number') number: string,
+    @Body() body: { amount?: unknown; date?: unknown } | undefined
+  ) {
+    const user = this.authService.verifyAuthorizationHeader(authorization);
+    return this.recordsService.addReceiptPayment(user.sub, number, body?.amount, body?.date);
   }
 
   @Post('day/:date/adjustments')

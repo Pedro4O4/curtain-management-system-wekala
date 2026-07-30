@@ -13,6 +13,20 @@ export class SaleItem {
 export const SaleItemSchema = SchemaFactory.createForClass(SaleItem);
 
 @Schema({ _id: false })
+export class ReceiptPayment {
+  @Prop({ required: true, min: 0 })
+  amount!: number;
+
+  @Prop({ required: true })
+  date!: string;
+
+  @Prop({ required: true, default: Date.now })
+  createdAt!: Date;
+}
+
+export const ReceiptPaymentSchema = SchemaFactory.createForClass(ReceiptPayment);
+
+@Schema({ _id: false })
 export class SaleReceipt {
   @Prop({ required: true, min: 1 })
   number!: number;
@@ -22,6 +36,15 @@ export class SaleReceipt {
 
   @Prop({ required: true, min: 0 })
   total!: number;
+
+  @Prop({ required: true, min: 0, default: 0 })
+  paidAmount!: number;
+
+  @Prop({ required: true, min: 0, default: 0 })
+  remainingAmount!: number;
+
+  @Prop({ type: [ReceiptPaymentSchema], default: [] })
+  payments!: ReceiptPayment[];
 
   @Prop({ required: true, default: Date.now })
   createdAt!: Date;

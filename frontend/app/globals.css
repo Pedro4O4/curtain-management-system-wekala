@@ -2930,6 +2930,143 @@ body {
   background: #ffffff;
 }
 
+.sale-payment-field {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.entry-total {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.entry-total > div {
+  display: grid;
+  gap: 3px;
+  padding-inline: 8px;
+  text-align: center;
+}
+
+.entry-total > div + div {
+  border-inline-start: 1px solid #b9ddd8;
+}
+
+.entry-total .entry-remaining strong {
+  color: #9a5a05;
+}
+
+.sale-payment-field small {
+  color: var(--retail-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.payment-remaining {
+  color: var(--retail-primary-dark);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.receipt-payment-status {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  padding: 12px 14px;
+  border-top: 1px solid #dce7ea;
+}
+
+.receipt-payment-status > div {
+  display: grid;
+  gap: 2px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: #edf7f5;
+}
+
+.receipt-payment-status span,
+.receipt-payment-form label {
+  color: var(--retail-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.receipt-payment-status strong {
+  color: var(--retail-ink);
+  font-size: 0.9rem;
+}
+
+.receipt-payment-status .remaining-due {
+  background: #fff3df;
+}
+
+.receipt-payment-status .remaining-due strong {
+  color: #9a5a05;
+}
+
+.receipt-payment-status .fully-paid {
+  background: #e7f7ed;
+}
+
+.remaining-stat {
+  border-color: #efd39e;
+  background: #fff7e8;
+}
+
+.remaining-stat strong,
+.day-sales-total small {
+  color: #9a5a05;
+}
+
+.day-sales-total small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.receipt-payment-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 8px 10px;
+  align-items: end;
+  padding: 0 14px 14px;
+}
+
+.receipt-payment-form label {
+  grid-column: 1 / -1;
+}
+
+.receipt-payment-form .btn {
+  min-height: 46px;
+  padding-inline: 10px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 520px) {
+  .entry-total {
+    gap: 4px;
+    padding-inline: 7px;
+  }
+
+  .entry-total > div {
+    padding-inline: 4px;
+  }
+
+  .entry-total strong {
+    font-size: 0.78rem;
+  }
+
+  .receipt-payment-form {
+    grid-template-columns: 1fr;
+  }
+
+  .receipt-payment-form label {
+    grid-column: auto;
+  }
+}
+
 .quick-action,
 .business-card {
   border-width: 1.5px;

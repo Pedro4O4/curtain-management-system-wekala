@@ -153,7 +153,7 @@ export default function AllPage() {
           </div>
           <div className="today-summary" aria-live="polite">
             <div>
-              <span>مبيعات اليوم</span>
+              <span>المُحصّل اليوم</span>
               <strong>{currency.format(dayData?.saleTotal ?? 0)}</strong>
             </div>
             <div>
