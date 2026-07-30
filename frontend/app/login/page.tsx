@@ -15,7 +15,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) {
-      setError('Please enter both username and password.');
+      setError('اكتب اسم المستخدم وكلمة المرور أولًا.');
       return;
     }
     setError(null);
@@ -31,7 +31,7 @@ export default function LoginPage() {
       window.localStorage.setItem('el-wekala-token', response.token);
       router.replace('/all');
     } catch (err: any) {
-      setError(err.message || 'Authentication failed. Please try again.');
+      setError(err.message || 'تعذّر تسجيل الدخول. حاول مرة أخرى.');
     } finally {
       setLoading(false);
     }
@@ -41,9 +41,9 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <header className="login-header">
-          <div className="login-logo">W</div>
-          <h2>El-Wekala Curtains</h2>
-          <p>Sales Management System</p>
+          <div className="login-logo">و</div>
+          <h2>الوكالة للستائر</h2>
+          <p>إدارة البيع وحركة الخزنة</p>
         </header>
 
         <div className="auth-tabs">
@@ -52,37 +52,35 @@ export default function LoginPage() {
             className={`auth-tab ${isLogin ? 'active' : ''}`}
             onClick={() => { setIsLogin(true); setError(null); }}
           >
-            Login
+            دخول
           </button>
           <button 
             type="button" 
             className={`auth-tab ${!isLogin ? 'active' : ''}`}
             onClick={() => { setIsLogin(false); setError(null); }}
           >
-            Register
+            حساب جديد
           </button>
         </div>
 
         <form className="form-stack" onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label" htmlFor="username">Username</label>
+            <label className="form-label" htmlFor="username">اسم المستخدم</label>
             <input 
               id="username"
               type="text" 
               className="form-input" 
-              placeholder="Enter your username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
             />
           </div>
           <div className="form-group">
-            <label className="form-label" htmlFor="password">Password</label>
+            <label className="form-label" htmlFor="password">كلمة المرور</label>
             <input 
               id="password"
               type="password" 
               className="form-input" 
-              placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
@@ -92,7 +90,7 @@ export default function LoginPage() {
           {error && <div className="form-error">{error}</div>}
 
           <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
-            {loading ? <span className="spinner" /> : (isLogin ? 'Sign In' : 'Create Account')}
+            {loading ? <span className="spinner" /> : (isLogin ? 'دخول' : 'إنشاء حساب')}
           </button>
         </form>
       </div>

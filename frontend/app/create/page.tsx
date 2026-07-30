@@ -1,284 +1,417 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { FormEvent, Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AppNav } from '../../components/app-nav';
 import { useSession } from '../../components/use-session';
 import { useToast } from '../../components/toast-context';
-import { 
-  DraftSaleRow, 
-  DraftAdjustmentRow, 
-  todayIsoDate, 
-  apiRequest, 
-  currency,
-  DayResponse
-} from '../../lib/sales';
+import { apiRequest, currency, DayResponse, isValidIsoDate, todayIsoDate } from '../../lib/sales';
 
-export default function CreatePage() {
+type EntryMode = 'sale' | 'adjustment';
+type SaleDraft = { id: string; item: string; price: string };
+
+function newSaleRow(): SaleDraft {
+  return { id: crypto.randomUUID(), item: '', price: '' };
+}
+
+function isUsableDate(value: string | null) {
+  return Boolean(value && isValidIsoDate(value) && value <= todayIsoDate());
+}
+
+function CreateContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { token, ready } = useSession();
   const { showToast } = useToast();
-
-  const [selectedDate, setSelectedDate] = useState(todayIsoDate());
-  const [activeTab, setActiveTab] = useState<'sales' | 'adjustments'>('sales');
-  
-  const [saleRows, setSaleRows] = useState<DraftSaleRow[]>([
-    { id: crypto.randomUUID(), item: '', price: '', confirmed: false }
-  ]);
-  
-  const [adjustmentRows, setAdjustmentRows] = useState<DraftAdjustmentRow[]>([]);
-  
+  const [selectedDate, setSelectedDate] = useState('');
+  const [mode, setMode] = useState<EntryMode>('sale');
+  const [saleRows, setSaleRows] = useState<SaleDraft[]>([newSaleRow()]);
+  const [direction, setDirection] = useState<'+' | '-'>('+');
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [summary, setSummary] = useState<DayResponse | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [summaryRefreshKey, setSummaryRefreshKey] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [focusLastItem, setFocusLastItem] = useState(false);
+  const lastItemRef = useRef<HTMLInputElement | null>(null);
+  const summaryRequestId = useRef(0);
 
-  if (!ready) return null;
-  if (!token) return null; // AppNav handles redirect
+  useEffect(() => {
+    const requestedDate = searchParams.get('date');
+    const nextDate = isUsableDate(requestedDate) ? requestedDate! : todayIsoDate();
+    if (nextDate !== selectedDate) {
+      summaryRequestId.current += 1;
+      setSummary(null);
+      setSummaryError(null);
+      setLoadingSummary(true);
+      setSelectedDate(nextDate);
+    }
+    setMode(searchParams.get('mode') === 'adjustment' ? 'adjustment' : 'sale');
+  }, [searchParams]);
 
-  const handleAddSaleRow = () => {
-    setSaleRows([...saleRows, { id: crypto.randomUUID(), item: '', price: '', confirmed: false }]);
-  };
+  useEffect(() => {
+    if (!token || !selectedDate) return;
 
-  const handleUpdateSaleRow = (id: string, field: keyof DraftSaleRow, value: any) => {
-    setSaleRows(saleRows.map(row => row.id === id ? { ...row, [field]: value } : row));
-  };
+    let active = true;
+    const requestId = ++summaryRequestId.current;
+    setLoadingSummary(true);
+    setSummary(null);
+    setSummaryError(null);
 
-  const handleRemoveSaleRow = (id: string) => {
-    setSaleRows(saleRows.filter(row => row.id !== id));
-  };
+    apiRequest<DayResponse>(`/records/day/${selectedDate}`, token)
+      .then((data) => {
+        if (active && summaryRequestId.current === requestId) setSummary(data);
+      })
+      .catch((error: unknown) => {
+        if (active && summaryRequestId.current === requestId) {
+          const message = error instanceof Error ? error.message : 'تعذّر تحميل ملخص اليوم';
+          setSummaryError(message);
+          showToast(message, 'error');
+        }
+      })
+      .finally(() => {
+        if (active && summaryRequestId.current === requestId) setLoadingSummary(false);
+      });
 
-  const handleAddAdjustmentRow = () => {
-    setAdjustmentRows([...adjustmentRows, { id: crypto.randomUUID(), amount: '', reason: '', direction: '-', confirmed: false }]);
-  };
+    return () => {
+      active = false;
+    };
+  }, [selectedDate, showToast, summaryRefreshKey, token]);
 
-  const handleUpdateAdjustmentRow = (id: string, field: keyof DraftAdjustmentRow, value: any) => {
-    setAdjustmentRows(adjustmentRows.map(row => row.id === id ? { ...row, [field]: value } : row));
-  };
+  useEffect(() => {
+    if (!focusLastItem) return;
+    lastItemRef.current?.focus();
+    setFocusLastItem(false);
+  }, [focusLastItem, saleRows.length]);
 
-  const handleRemoveAdjustmentRow = (id: string) => {
-    setAdjustmentRows(adjustmentRows.filter(row => row.id !== id));
-  };
+  function updateSaleRow(id: string, field: 'item' | 'price', value: string) {
+    setSaleRows((rows) => rows.map((row) => row.id === id ? { ...row, [field]: value } : row));
+  }
 
-  const handleSaveSales = async () => {
-    const confirmedRows = saleRows.filter(r => r.confirmed);
-    if (confirmedRows.length === 0) {
-      showToast('No confirmed sales to save.', 'info');
+  function removeSaleRow(id: string) {
+    setSaleRows((rows) => rows.length === 1 ? rows : rows.filter((row) => row.id !== id));
+  }
+
+  function addSaleRow() {
+    setSaleRows((rows) => [...rows, newSaleRow()]);
+    setFocusLastItem(true);
+  }
+
+  function changeDate(nextDate: string) {
+    if (!isUsableDate(nextDate)) {
+      showToast('اختر تاريخًا صحيحًا لا يتجاوز اليوم.', 'info');
+      return false;
+    }
+
+    if (nextDate === selectedDate) return true;
+
+    summaryRequestId.current += 1;
+    setSummary(null);
+    setSummaryError(null);
+    setLoadingSummary(true);
+    setSelectedDate(nextDate);
+    return true;
+  }
+
+  async function saveSales(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const rowsToSave = saleRows.map((row) => ({ item: row.item.trim(), price: Number(row.price) }));
+    const hasIncompleteRow = rowsToSave.some((row) => !row.item || !Number.isFinite(row.price) || row.price <= 0);
+
+    if (hasIncompleteRow) {
+      showToast('اكتب الصنف والسعر الصحيح في كل صف أولًا.', 'info');
       return;
     }
 
+    if (!token || !selectedDate) return;
     setSaving(true);
+
     try {
-      for (const row of confirmedRows) {
-        await apiRequest<DayResponse>(`/records/day/${selectedDate}/sales`, token, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ item: row.item, price: Number(row.price) })
-        });
-      }
-      showToast('Saved successfully!', 'success');
-      router.push(`/details?date=${selectedDate}`);
-    } catch (err: any) {
-      showToast(err.message || 'Failed to save sales', 'error');
+      const response = await apiRequest<DayResponse>(`/records/day/${selectedDate}/sales/bulk`, token, {
+        method: 'POST',
+        body: JSON.stringify({ sales: rowsToSave }),
+      });
+      summaryRequestId.current += 1;
+      setSummary(response);
+      setSummaryError(null);
+      setLoadingSummary(false);
+      setSaleRows([newSaleRow()]);
+      showToast(
+        `تم تسجيل بيعة رقم ${response.createdReceipt?.number ?? ''} بنجاح.`,
+        'success'
+      );
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'تعذّر تسجيل البيعة', 'error');
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const handleSaveAdjustments = async () => {
-    const confirmedRows = adjustmentRows.filter(r => r.confirmed);
-    if (confirmedRows.length === 0) {
-      showToast('No confirmed adjustments to save.', 'info');
+  async function saveAdjustment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsedAmount = Number(amount);
+
+    if (!reason.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      showToast('اكتب السبب والمبلغ الصحيح أولًا.', 'info');
       return;
     }
 
+    if (!token || !selectedDate) return;
     setSaving(true);
+
     try {
-      for (const row of confirmedRows) {
-        await apiRequest<DayResponse>(`/records/day/${selectedDate}/adjustments`, token, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: Number(row.amount), reason: row.reason, direction: row.direction })
-        });
-      }
-      showToast('Saved successfully!', 'success');
-      router.push(`/details?date=${selectedDate}`);
-    } catch (err: any) {
-      showToast(err.message || 'Failed to save adjustments', 'error');
+      const response = await apiRequest<DayResponse>(`/records/day/${selectedDate}/adjustments`, token, {
+        method: 'POST',
+        body: JSON.stringify({ amount: parsedAmount, reason: reason.trim(), direction }),
+      });
+      summaryRequestId.current += 1;
+      setSummary(response);
+      setSummaryError(null);
+      setLoadingSummary(false);
+      setAmount('');
+      setReason('');
+      showToast(direction === '+' ? 'تم تسجيل الزيادة في الخزنة.' : 'تم تسجيل الخصم من الخزنة.', 'success');
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'تعذّر تسجيل الحركة', 'error');
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const renderSalesTab = () => {
-    const runningTotal = saleRows.filter(r => r.confirmed).reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);
-    
-    return (
-      <>
-        <div className="draft-list">
-          {saleRows.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-text">Add your first entry</div>
-              <button className="btn btn-secondary mt-4" onClick={handleAddSaleRow}>Add Row</button>
-            </div>
-          ) : (
-            saleRows.map((row, index) => (
-              <div key={row.id} className={`draft-row ${row.confirmed ? 'confirmed' : ''}`}>
-                <div className="row-index">{row.confirmed ? '✓' : index + 1}</div>
-                <input 
-                  type="text" 
-                  className="form-input row-field" 
-                  placeholder="Item Name" 
-                  value={row.item}
-                  onChange={(e) => handleUpdateSaleRow(row.id, 'item', e.target.value)}
-                  disabled={row.confirmed}
-                />
-                <input 
-                  type="number" 
-                  className="form-input row-field" 
-                  placeholder="Price" 
-                  value={row.price}
-                  onChange={(e) => handleUpdateSaleRow(row.id, 'price', e.target.value)}
-                  disabled={row.confirmed}
-                />
-                <div className="row-actions">
-                  <button 
-                    className={`btn ${row.confirmed ? 'btn-secondary' : 'btn-primary'} btn-sm`}
-                    onClick={() => handleUpdateSaleRow(row.id, 'confirmed', !row.confirmed)}
-                  >
-                    {row.confirmed ? 'Edit' : 'Confirm'}
-                  </button>
-                  <button className="btn btn-danger btn-sm" onClick={() => handleRemoveSaleRow(row.id)}>Delete</button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-        
-        {saleRows.length > 0 && (
-          <div className="composer-footer mt-4">
-            <button className="btn btn-secondary" onClick={handleAddSaleRow}>+ Add Row</button>
-            <div className="running-total">Total Confirmed: {currency.format(runningTotal)}</div>
-          </div>
-        )}
-        
-        {saleRows.length > 0 && (
-          <div className="mt-6 flex justify-end">
-            <button className="btn btn-primary btn-full" onClick={handleSaveSales} disabled={saving}>
-              {saving ? 'Saving...' : 'Save All Confirmed Sales'}
-            </button>
-          </div>
-        )}
-      </>
-    );
-  };
+  const saleTotal = saleRows.reduce((total, row) => total + (Number(row.price) || 0), 0);
+  const today = todayIsoDate();
 
-  const renderAdjustmentsTab = () => {
-    return (
-      <>
-        <div className="draft-list">
-          {adjustmentRows.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-text">Add your first entry</div>
-              <button className="btn btn-secondary mt-4" onClick={handleAddAdjustmentRow}>Add Row</button>
-            </div>
-          ) : (
-            adjustmentRows.map((row, index) => (
-              <div key={row.id} className={`draft-row ${row.confirmed ? 'confirmed' : ''}`}>
-                <div className="row-index">{row.confirmed ? '✓' : index + 1}</div>
-                
-                <div className="flex gap-1 items-center">
-                  <button 
-                    className={`btn btn-sm ${row.direction === '+' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => handleUpdateAdjustmentRow(row.id, 'direction', '+')}
-                    disabled={row.confirmed}
-                  >+</button>
-                  <button 
-                    className={`btn btn-sm ${row.direction === '-' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => handleUpdateAdjustmentRow(row.id, 'direction', '-')}
-                    disabled={row.confirmed}
-                  >-</button>
-                </div>
-
-                <input 
-                  type="text" 
-                  className="form-input row-field" 
-                  placeholder="Reason" 
-                  value={row.reason}
-                  onChange={(e) => handleUpdateAdjustmentRow(row.id, 'reason', e.target.value)}
-                  disabled={row.confirmed}
-                />
-                <input 
-                  type="number" 
-                  className="form-input row-field" 
-                  placeholder="Amount" 
-                  value={row.amount}
-                  onChange={(e) => handleUpdateAdjustmentRow(row.id, 'amount', e.target.value)}
-                  disabled={row.confirmed}
-                />
-                <div className="row-actions">
-                  <button 
-                    className={`btn ${row.confirmed ? 'btn-secondary' : 'btn-primary'} btn-sm`}
-                    onClick={() => handleUpdateAdjustmentRow(row.id, 'confirmed', !row.confirmed)}
-                  >
-                    {row.confirmed ? 'Edit' : 'Confirm'}
-                  </button>
-                  <button className="btn btn-danger btn-sm" onClick={() => handleRemoveAdjustmentRow(row.id)}>Delete</button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {adjustmentRows.length > 0 && (
-          <div className="composer-footer mt-4">
-            <button className="btn btn-secondary" onClick={handleAddAdjustmentRow}>+ Add Row</button>
-          </div>
-        )}
-
-        {adjustmentRows.length > 0 && (
-          <div className="mt-6 flex justify-end">
-            <button className="btn btn-primary btn-full" onClick={handleSaveAdjustments} disabled={saving}>
-              {saving ? 'Saving...' : 'Save All Confirmed Adjustments'}
-            </button>
-          </div>
-        )}
-      </>
-    );
-  };
+  if (!ready || !token) return null;
 
   return (
-    <AppNav>
-      <div className="dashboard-shell">
-        <div className="composer-card panel-card">
-          <div className="composer-header panel-header flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h2 className="composer-title panel-title">New Entry</h2>
-            <div className="composer-actions">
-              <input 
-                type="date" 
-                className="form-input date-picker" 
-                max={todayIsoDate()}
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-              />
-            </div>
-          </div>
-          
-          <div className="composer-tabs flex border-b border-gray-200 dark:border-gray-700 mb-6">
-            <button 
-              className={`composer-tab py-2 px-4 ${activeTab === 'sales' ? 'active border-b-2 border-blue-500 font-bold' : ''}`}
-              onClick={() => setActiveTab('sales')}
-            >
-              Sales
-            </button>
-            <button 
-              className={`composer-tab py-2 px-4 ${activeTab === 'adjustments' ? 'active border-b-2 border-blue-500 font-bold' : ''}`}
-              onClick={() => setActiveTab('adjustments')}
-            >
-              Adjustments
-            </button>
-          </div>
-
-          {activeTab === 'sales' ? renderSalesTab() : renderAdjustmentsTab()}
-        </div>
+    <section className="retail-workspace">
+      <div className="workspace-bar">
+        <button className="back-button" onClick={() => router.push('/all')} type="button">
+          <span aria-hidden="true">›</span>
+          الرئيسية
+        </button>
+        <label className="date-control compact">
+          <span>تاريخ الحساب</span>
+          <input
+            aria-label="تاريخ الحساب"
+            className="form-input"
+            dir="ltr"
+            max={today}
+            onChange={(event) => {
+              if (!changeDate(event.target.value)) event.currentTarget.value = selectedDate;
+            }}
+            type="date"
+            value={selectedDate}
+          />
+        </label>
       </div>
+
+      <div className="workspace-heading">
+        <span className="eyebrow">قطاعي</span>
+        <h2>{mode === 'sale' ? 'سجّل بيعة جديدة' : 'سجّل حركة للخزنة'}</h2>
+        <p>{mode === 'sale' ? 'اكتب الصنف والسعر ثم اضغط تأكيد وتسجيل.' : 'هذه حركة نقدية لا ترتبط بأي بيعة.'}</p>
+      </div>
+
+      <div className="entry-mode-switch" role="tablist" aria-label="نوع التسجيل">
+        <button
+          aria-selected={mode === 'sale'}
+          className={mode === 'sale' ? 'active' : ''}
+          onClick={() => setMode('sale')}
+          role="tab"
+          type="button"
+        >
+          <span aria-hidden="true">+</span>
+          بيعة
+        </button>
+        <button
+          aria-selected={mode === 'adjustment'}
+          className={mode === 'adjustment' ? 'active' : ''}
+          onClick={() => setMode('adjustment')}
+          role="tab"
+          type="button"
+        >
+          <span aria-hidden="true">±</span>
+          خصم أو زيادة
+        </button>
+      </div>
+
+      <div className="entry-layout">
+        <div className="entry-card card-surface">
+          {mode === 'sale' ? (
+            <form onSubmit={saveSales}>
+              <div className="entry-card-heading">
+                <div>
+                  <h3>بيعة جديدة</h3>
+                  <p>يمكنك إضافة أكثر من صنف في نفس التسجيل.</p>
+                </div>
+                <span className="entry-count">{saleRows.length} {saleRows.length === 1 ? 'صنف' : 'أصناف'}</span>
+              </div>
+
+              <div className="sale-table">
+                <div className="sale-table-head" aria-hidden="true">
+                  <span>الصنف</span>
+                  <span>السعر</span>
+                  <span />
+                </div>
+                {saleRows.map((row, index) => (
+                  <div className="sale-entry-row" key={row.id}>
+                    <label className="sr-only" htmlFor={`item-${row.id}`}>الصنف رقم {index + 1}</label>
+                    <input
+                      autoFocus={index === 0}
+                      className="form-input"
+                      id={`item-${row.id}`}
+                      onChange={(event) => updateSaleRow(row.id, 'item', event.target.value)}
+                      ref={index === saleRows.length - 1 ? lastItemRef : undefined}
+                      type="text"
+                      value={row.item}
+                    />
+                    <label className="sr-only" htmlFor={`price-${row.id}`}>سعر الصنف رقم {index + 1}</label>
+                    <div className="money-input no-suffix">
+                      <input
+                        className="form-input"
+                        dir="ltr"
+                        id={`price-${row.id}`}
+                        inputMode="decimal"
+                        min="0"
+                        onChange={(event) => updateSaleRow(row.id, 'price', event.target.value)}
+                        step="0.01"
+                        type="number"
+                        value={row.price}
+                      />
+                    </div>
+                    <button
+                      aria-label={`حذف الصنف رقم ${index + 1}`}
+                      className="remove-row"
+                      disabled={saleRows.length === 1}
+                      onClick={() => removeSaleRow(row.id)}
+                      title="حذف الصنف"
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button className="add-row-button" onClick={addSaleRow} type="button">
+                <span aria-hidden="true">+</span>
+                إضافة صنف آخر
+              </button>
+
+              <div className="entry-total">
+                <span>إجمالي البيعة</span>
+                <strong>{currency.format(saleTotal)}</strong>
+              </div>
+              <button className="btn btn-primary confirm-button" disabled={saving} type="submit">
+                {saving ? 'جارٍ التسجيل...' : 'تأكيد وتسجيل البيعة'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={saveAdjustment}>
+              <div className="entry-card-heading">
+                <div>
+                  <h3>خصم أو زيادة</h3>
+                  <p>حركة نقدية مستقلة عن المبيعات.</p>
+                </div>
+              </div>
+
+              <div className="movement-type" aria-label="نوع الحركة">
+                <button
+                  aria-pressed={direction === '+'}
+                  className={direction === '+' ? 'active income' : ''}
+                  onClick={() => setDirection('+')}
+                  type="button"
+                >
+                  <span aria-hidden="true">↑</span>
+                  زيادة / دخل
+                </button>
+                <button
+                  aria-pressed={direction === '-'}
+                  className={direction === '-' ? 'active expense' : ''}
+                  onClick={() => setDirection('-')}
+                  type="button"
+                >
+                  <span aria-hidden="true">↓</span>
+                  خصم / خرج
+                </button>
+              </div>
+
+              <div className="movement-fields">
+                <label className="form-group" htmlFor="adjustment-reason">
+                  <span className="form-label">البيان أو السبب</span>
+                  <input
+                    className="form-input"
+                    id="adjustment-reason"
+                    onChange={(event) => setReason(event.target.value)}
+                    type="text"
+                    value={reason}
+                  />
+                </label>
+                <label className="form-group" htmlFor="adjustment-amount">
+                  <span className="form-label">المبلغ</span>
+                  <div className="money-input full-width">
+                    <input
+                      className="form-input"
+                      dir="ltr"
+                      id="adjustment-amount"
+                      inputMode="decimal"
+                      min="0"
+                      onChange={(event) => setAmount(event.target.value)}
+                      step="0.01"
+                      type="number"
+                      value={amount}
+                    />
+                    <span>ج.م</span>
+                  </div>
+                </label>
+              </div>
+
+              <button className="btn btn-primary confirm-button" disabled={saving} type="submit">
+                {saving ? 'جارٍ التسجيل...' : direction === '+' ? 'تأكيد وتسجيل الزيادة' : 'تأكيد وتسجيل الخصم'}
+              </button>
+            </form>
+          )}
+        </div>
+
+        <aside className="day-summary-card card-surface" aria-live="polite">
+          <div className="summary-card-heading">
+            <div>
+              <span className="eyebrow">ملخص اليوم</span>
+              <h3>{selectedDate || '...'}</h3>
+            </div>
+            <button className="text-button" onClick={() => selectedDate && router.push(`/details?date=${selectedDate}`)} type="button">
+              التفاصيل
+            </button>
+          </div>
+          {loadingSummary ? (
+            <div className="summary-loading">جارٍ تحميل الحسابات...</div>
+          ) : summaryError ? (
+            <div className="summary-error">
+              <p>تعذّر تحميل ملخص هذا اليوم.</p>
+              <button className="text-button" onClick={() => setSummaryRefreshKey((value) => value + 1)} type="button">إعادة المحاولة</button>
+            </div>
+          ) : (
+            <div className="summary-lines">
+              <div><span>عدد البيعات</span><strong>{summary?.receipts.length ?? 0}</strong></div>
+              <div><span>إجمالي البيع</span><strong>{currency.format(summary?.saleTotal ?? 0)}</strong></div>
+              <div><span>دخل / خرج</span><strong className={(summary?.adjustmentTotal ?? 0) < 0 ? 'amount-negative' : 'amount-positive'}>{currency.format(summary?.adjustmentTotal ?? 0)}</strong></div>
+              <div className="summary-net"><span>صافي اليوم</span><strong>{currency.format(summary?.dayTotal ?? 0)}</strong></div>
+            </div>
+          )}
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+export default function CreatePage() {
+  return (
+    <AppNav>
+      <Suspense fallback={<div className="page-loading">جارٍ التحميل...</div>}>
+        <CreateContent />
+      </Suspense>
     </AppNav>
   );
 }

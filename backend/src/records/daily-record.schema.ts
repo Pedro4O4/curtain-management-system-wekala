@@ -13,6 +13,23 @@ export class SaleItem {
 export const SaleItemSchema = SchemaFactory.createForClass(SaleItem);
 
 @Schema({ _id: false })
+export class SaleReceipt {
+  @Prop({ required: true, min: 1 })
+  number!: number;
+
+  @Prop({ type: [SaleItemSchema], default: [] })
+  items!: SaleItem[];
+
+  @Prop({ required: true, min: 0 })
+  total!: number;
+
+  @Prop({ required: true, default: Date.now })
+  createdAt!: Date;
+}
+
+export const SaleReceiptSchema = SchemaFactory.createForClass(SaleReceipt);
+
+@Schema({ _id: false })
 export class AdjustmentItem {
   @Prop({ required: true, min: 0 })
   amount!: number;
@@ -36,6 +53,10 @@ export class DailyRecord {
 
   @Prop({ type: [SaleItemSchema], default: [] })
   sales!: SaleItem[];
+
+  // `sales` remains for existing records. Every new confirmation is saved as one receipt.
+  @Prop({ type: [SaleReceiptSchema], default: [] })
+  receipts!: SaleReceipt[];
 
   @Prop({ type: [AdjustmentItemSchema], default: [] })
   adjustments!: AdjustmentItem[];
