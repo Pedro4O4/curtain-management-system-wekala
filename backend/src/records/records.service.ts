@@ -14,6 +14,12 @@ type DaySummary = {
   dayTotal: number;
 };
 
+type SalesListItem = {
+  date: string;
+  item: string;
+  price: number;
+};
+
 @Injectable()
 export class RecordsService {
   constructor(
@@ -106,6 +112,22 @@ export class RecordsService {
       today: todayIsoDate(),
       days,
       total: days.reduce((sum, day) => sum + day.dayTotal, 0)
+    };
+  }
+
+  async getSales(userId: string) {
+    const records = await this.recordModel.find({ userId }).sort({ date: -1 }).exec();
+    const sales: SalesListItem[] = records.flatMap((record) =>
+      record.sales.map((sale) => ({
+        date: record.date,
+        item: sale.item,
+        price: sale.price
+      }))
+    );
+
+    return {
+      sales,
+      total: sales.reduce((sum, sale) => sum + sale.price, 0)
     };
   }
 

@@ -21,6 +21,12 @@ export class RecordsController {
     return this.recordsService.getDay(user.sub, date);
   }
 
+  @Get('sales')
+  getSales(@Headers('authorization') authorization: string | undefined) {
+    const user = this.authService.verifyAuthorizationHeader(authorization);
+    return this.recordsService.getSales(user.sub);
+  }
+
   @Post('day/:date/sales')
   addSale(
     @Headers('authorization') authorization: string | undefined,
