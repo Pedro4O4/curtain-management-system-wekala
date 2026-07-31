@@ -4,8 +4,9 @@ import { Model } from 'mongoose';
 import { isFutureDate, isValidIsoDate, isValidMonth, monthDates, todayIsoDate } from '../common/date-utils';
 import { DailyRecord, DailyRecordDocument } from './daily-record.schema';
 import { User, UserDocument } from '../users/user.schema';
+import { Product, ProductDocument } from '../products/product.schema';
 
-type SaleLine = { item: string; price: number; meters: number };
+type SaleLine = { item: string; price: number; meters: number; costPerMeter: number };
 
 type SaleReceiptSummary = {
   number: number | null;
@@ -15,6 +16,7 @@ type SaleReceiptSummary = {
   remainingAmount: number;
   payments: { amount: number; date: string; createdAt: Date }[];
   paymentMethod: 'cash' | 'instapay' | 'wallet';
+  profit: number;
   createdAt: Date;
   legacy: boolean;
 };
@@ -29,6 +31,9 @@ type DaySummary = {
   saleTotal: number;
   adjustmentTotal: number;
   dayTotal: number;
+  profitTotal: number;
+  remainingTotal: number;
+  netTotal: number;
 };
 
 type SalesListItem = SaleReceiptSummary & { date: string };
@@ -40,25 +45,27 @@ const MAX_ITEM_NAME_LENGTH = 200;
 export class RecordsService {
   constructor(
     @InjectModel(DailyRecord.name) private readonly recordModel: Model<DailyRecordDocument>,
-    @InjectModel(User.name) private readonly userModel: Model<UserDocument>
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>
   ) {}
 
   private toReceipts(record: Pick<DailyRecord, 'sales' | 'receipts'>): SaleReceiptSummary[] {
     const legacyReceipts = record.sales.map((sale) => ({
       number: null,
-      items: [{ item: sale.item, price: sale.price, meters: sale.meters ?? 1 }],
+      items: [{ item: sale.item, price: sale.price, meters: sale.meters ?? 1, costPerMeter: sale.costPerMeter ?? 0 }],
       total: sale.price,
       paidAmount: sale.price,
       remainingAmount: 0,
       payments: [],
       paymentMethod: 'cash' as const,
+      profit: 0,
       createdAt: new Date(0),
       legacy: true
     }));
 
     const savedReceipts = (record.receipts ?? []).map((receipt) => ({
       number: receipt.number,
-      items: receipt.items.map((item) => ({ item: item.item, price: item.price, meters: item.meters ?? 1 })),
+      items: receipt.items.map((item) => ({ item: item.item, price: item.price, meters: item.meters ?? 1, costPerMeter: item.costPerMeter ?? 0 })),
       total: receipt.total,
       paidAmount: receipt.paidAmount ?? receipt.total,
       remainingAmount: receipt.remainingAmount ?? 0,
@@ -68,6 +75,7 @@ export class RecordsService {
         createdAt: payment.createdAt
       })),
       paymentMethod: receipt.paymentMethod ?? 'cash',
+      profit: receipt.items.reduce((sum, item) => sum + ((item.price - (item.costPerMeter ?? 0)) * (item.meters ?? 1)), 0),
       createdAt: receipt.createdAt,
       legacy: false
     }));
@@ -80,6 +88,8 @@ export class RecordsService {
     const sales = receipts.flatMap((receipt) => receipt.items);
     // Daily cash should include only money actually collected, not unpaid balances.
     const saleTotal = receipts.reduce((total, receipt) => total + receipt.paidAmount, 0);
+    const profitTotal = receipts.reduce((total, receipt) => total + receipt.profit, 0);
+    const remainingTotal = receipts.reduce((total, receipt) => total + receipt.remainingAmount, 0);
     const adjustmentTotal = record.adjustments.reduce(
       (total, adjustment) => total + (adjustment.direction === '+' ? adjustment.amount : -adjustment.amount),
       0
@@ -93,7 +103,10 @@ export class RecordsService {
       adjustments: record.adjustments,
       saleTotal,
       adjustmentTotal,
-      dayTotal: saleTotal + adjustmentTotal
+      dayTotal: saleTotal + adjustmentTotal,
+      profitTotal,
+      remainingTotal,
+      netTotal: saleTotal - remainingTotal + adjustmentTotal
     };
   }
 
@@ -132,7 +145,7 @@ export class RecordsService {
     }
 
     if (isFutureDate(date)) {
-      return { date, locked: true, sales: [], receipts: [], adjustments: [], saleTotal: 0, adjustmentTotal: 0, dayTotal: 0 };
+      return { date, locked: true, sales: [], receipts: [], adjustments: [], saleTotal: 0, adjustmentTotal: 0, dayTotal: 0, profitTotal: 0, remainingTotal: 0, netTotal: 0 };
     }
 
     const record = await this.recordModel.findOne({ userId, date }).exec();
@@ -198,6 +211,7 @@ export class RecordsService {
     return {
       sales,
       total: sales.reduce((sum, sale) => sum + sale.paidAmount, 0),
+      profitTotal: sales.reduce((sum, sale) => sum + sale.profit, 0),
       receiptCount: sales.length
     };
   }
@@ -250,7 +264,13 @@ export class RecordsService {
       throw new ForbiddenException('Future days are locked');
     }
 
-    const total = items.reduce((sum, item) => sum + (item.price * item.meters), 0);
+    const registeredProducts = await this.productModel.find({ userId, name: { $in: items.map((item) => item.item) } }).exec();
+    const costsByName = new Map(registeredProducts.map((product) => [product.name, product.wholesalePrice ?? 0]));
+    if (items.some((item) => !costsByName.has(item.item))) {
+      throw new BadRequestException('اختر نوع ستارة مسجّلًا حتى يتم حساب المكسب بدقة');
+    }
+    const saleItems = items.map((item) => ({ ...item, costPerMeter: costsByName.get(item.item) ?? 0 }));
+    const total = saleItems.reduce((sum, item) => sum + (item.price * item.meters), 0);
     const payment = paidAmount === undefined ? total : paidAmount;
     const method = paymentMethod === undefined ? 'cash' : paymentMethod;
     if (typeof payment !== 'number' || !Number.isFinite(payment) || payment < 0 || payment > total) {
@@ -263,7 +283,7 @@ export class RecordsService {
 
     const receipt = {
       number: await this.allocateSaleNumber(userId),
-      items,
+      items: saleItems,
       total,
       paidAmount: payment,
       remainingAmount: total - payment,

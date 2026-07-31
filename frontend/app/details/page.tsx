@@ -14,6 +14,7 @@ function DetailsContent() {
   const searchParams = useSearchParams();
   const { token, ready } = useSession();
   const { showToast } = useToast();
+  const cashOnly = searchParams.get('view') === 'cash';
   const [date, setDate] = useState('');
   const [dayData, setDayData] = useState<DayResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,7 +24,7 @@ function DetailsContent() {
 
   useEffect(() => {
     const requestedDate = searchParams.get('date');
-    const today = todayIsoDate();
+  const today = todayIsoDate();
     const nextDate = requestedDate && isValidIsoDate(requestedDate) && requestedDate <= today ? requestedDate : today;
     if (nextDate !== date) {
       dayRequestId.current += 1;
@@ -78,6 +79,8 @@ function DetailsContent() {
     return true;
   }
 
+  const netToday = dayData?.netTotal ?? ((dayData?.saleTotal ?? 0) - (dayData?.remainingTotal ?? 0) + (dayData?.adjustmentTotal ?? 0));
+
   if (!ready || !token) return null;
 
   return (
@@ -108,8 +111,8 @@ function DetailsContent() {
       </div>
 
       <div className="details-heading">
-        <span className="eyebrow">ملخص اليوم</span>
-        <h2>{date || '...'}</h2>
+        <span className="eyebrow">{cashOnly ? 'الخزنة' : 'ملخص اليوم'}</span>
+        <h2>{cashOnly ? 'أسباب حركة الخزنة' : (date || '...')}</h2>
       </div>
 
       {loading ? (
@@ -121,14 +124,14 @@ function DetailsContent() {
         </div>
       ) : (
         <>
-          <div className="daily-stats">
-            <div className="daily-stat primary"><span>صافي اليوم</span><strong>{currency.format(dayData?.dayTotal ?? 0)}</strong></div>
+          {!cashOnly && <div className="daily-stats">
+            <div className="daily-stat primary"><span>صافي اليوم</span><strong>{currency.format(netToday)}</strong></div>
             <div className="daily-stat"><span>المُحصّل من البيع</span><strong>{currency.format(dayData?.saleTotal ?? 0)}</strong></div>
             <div className="daily-stat"><span>دخل / خرج مستقل</span><strong className={(dayData?.adjustmentTotal ?? 0) < 0 ? 'amount-negative' : 'amount-positive'}>{currency.format(dayData?.adjustmentTotal ?? 0)}</strong></div>
             <div className="daily-stat"><span>عدد البيعات</span><strong>{dayData?.receipts.length ?? 0}</strong></div>
-          </div>
+          </div>}
 
-          <article className="records-card card-surface">
+          {!cashOnly && <article className="records-card card-surface">
             <div className="records-heading">
               <div>
                 <span className="eyebrow">المبيعات</span>
@@ -164,9 +167,9 @@ function DetailsContent() {
                 ))}
               </div>
             )}
-          </article>
+          </article>}
 
-          <article className="records-card card-surface">
+          <article className="records-card card-surface" id="cash-reasons">
             <div className="records-heading">
               <div>
                 <span className="eyebrow">الخزنة</span>

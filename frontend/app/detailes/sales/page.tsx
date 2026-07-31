@@ -63,11 +63,13 @@ function SalesHistoryContent() {
       total: sales.reduce((sum, sale) => sum + sale.total, 0),
       paid: sales.reduce((sum, sale) => sum + sale.paidAmount, 0),
       remaining: sales.reduce((sum, sale) => sum + sale.remainingAmount, 0),
+      profit: sales.reduce((sum, sale) => sum + sale.profit, 0),
     }));
   }, [visibleSales]);
 
   const visiblePaidTotal = visibleSales.reduce((sum, sale) => sum + sale.paidAmount, 0);
   const visibleRemainingTotal = visibleSales.reduce((sum, sale) => sum + sale.remainingAmount, 0);
+  const visibleProfitTotal = visibleSales.reduce((sum, sale) => sum + sale.profit, 0);
 
   async function savePayment(sale: SalesListResponse['sales'][number]) {
     if (sale.number === null || !token) return;
@@ -152,6 +154,7 @@ function SalesHistoryContent() {
           <div className="daily-stats sales-history-stats">
             <div className="daily-stat primary"><span>إجمالي المُحصّل</span><strong>{currency.format(visiblePaidTotal)}</strong></div>
             <div className="daily-stat remaining-stat"><span>إجمالي المتبقي</span><strong>{currency.format(visibleRemainingTotal)}</strong></div>
+            <div className="daily-stat profit-stat"><span>مكسب اليوم</span><strong>{currency.format(visibleProfitTotal)}</strong></div>
             <div className="daily-stat"><span>عدد البيعات</span><strong>{visibleSales.length}</strong></div>
           </div>
           <article className="records-card card-surface">
@@ -177,6 +180,7 @@ function SalesHistoryContent() {
                         <span>{day.sales.length} {day.sales.length === 1 ? 'بيعة' : 'بيعات'}</span>
                         <strong>{currency.format(day.paid)}</strong>
                         {day.remaining > 0 && <small>متبقي {currency.format(day.remaining)}</small>}
+                        <small className="receipt-profit">مكسب {currency.format(day.profit)}</small>
                       </div>
                     </header>
                     <div className="receipt-list">
@@ -206,6 +210,10 @@ function SalesHistoryContent() {
                               <div className={sale.remainingAmount > 0 ? 'remaining-due' : 'fully-paid'}>
                                 <span>المتبقي</span>
                                 <strong>{currency.format(sale.remainingAmount)}</strong>
+                              </div>
+                              <div className="profit-tile">
+                                <span>المكسب</span>
+                                <strong>{currency.format(sale.profit)}</strong>
                               </div>
                             </div>
                           )}

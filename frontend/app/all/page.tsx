@@ -41,6 +41,7 @@ export default function AllPage() {
   }, [selectedDate, showToast, token]);
 
   const today = todayIsoDate();
+  const netToday = dayData?.netTotal ?? ((dayData?.saleTotal ?? 0) - (dayData?.remainingTotal ?? 0) + (dayData?.adjustmentTotal ?? 0));
 
   function chooseDate(nextDate: string) {
     if (!nextDate || !isValidIsoDate(nextDate) || nextDate > today) {
@@ -156,15 +157,23 @@ export default function AllPage() {
               <span>المُحصّل اليوم</span>
               <strong>{currency.format(dayData?.saleTotal ?? 0)}</strong>
             </div>
+            <div className="today-profit">
+              <span>مكسب اليوم</span>
+              <strong>{currency.format(dayData?.profitTotal ?? 0)}</strong>
+            </div>
             <div>
               <span>حركة الخزنة</span>
               <strong className={(dayData?.adjustmentTotal ?? 0) < 0 ? 'amount-negative' : 'amount-positive'}>
                 {currency.format(dayData?.adjustmentTotal ?? 0)}
               </strong>
             </div>
-            <div>
+            <div className="today-remaining">
+              <span>إجمالي المتبقي</span>
+              <strong>{currency.format(dayData?.remainingTotal ?? 0)}</strong>
+            </div>
+            <div className="today-net">
               <span>صافي اليوم</span>
-              <strong>{currency.format(dayData?.dayTotal ?? 0)}</strong>
+              <strong>{currency.format(netToday)}</strong>
             </div>
           </div>
         </section>

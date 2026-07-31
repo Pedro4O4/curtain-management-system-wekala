@@ -11,6 +11,9 @@ export class SaleItem {
 
   @Prop({ required: true, min: 0.01, default: 1 })
   meters!: number;
+
+  @Prop({ required: true, min: 0, default: 0 })
+  costPerMeter!: number;
 }
 
 export const SaleItemSchema = SchemaFactory.createForClass(SaleItem);

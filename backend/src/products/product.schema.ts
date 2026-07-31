@@ -8,6 +8,9 @@ export class Product {
 
   @Prop({ required: true, trim: true, maxlength: 120 })
   name!: string;
+
+  @Prop({ required: true, min: 0, default: 0 })
+  wholesalePrice!: number;
 }
 
 export type ProductDocument = HydratedDocument<Product>;

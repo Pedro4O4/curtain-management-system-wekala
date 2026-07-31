@@ -4,13 +4,14 @@ import { FormEvent, useEffect, useState } from 'react';
 import { AppNav } from '../../components/app-nav';
 import { useSession } from '../../components/use-session';
 import { useToast } from '../../components/toast-context';
-import { apiRequest, Product } from '../../lib/sales';
+import { apiRequest, currency, Product } from '../../lib/sales';
 
 export default function ProductsPage() {
   const { token, ready } = useSession();
   const { showToast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [name, setName] = useState('');
+  const [wholesalePrice, setWholesalePrice] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -22,15 +23,17 @@ export default function ProductsPage() {
 
   async function addProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!name.trim() || !token) return;
+    const price = Number(wholesalePrice);
+    if (!name.trim() || !token || !Number.isFinite(price) || price < 0) return;
     setSaving(true);
     try {
       const product = await apiRequest<Product>('/products', token, {
         method: 'POST',
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({ name: name.trim(), wholesalePrice: price }),
       });
       setProducts((current) => current.some((entry) => entry._id === product._id) ? current : [...current, product].sort((a, b) => a.name.localeCompare(b.name, 'ar')));
       setName('');
+      setWholesalePrice('');
       showToast('تمت إضافة النوع.', 'success');
     } catch (error: unknown) {
       showToast(error instanceof Error ? error.message : 'تعذّر إضافة النوع.', 'error');
@@ -65,7 +68,11 @@ export default function ProductsPage() {
               <span className="form-label">اسم النوع</span>
               <input className="form-input" id="product-name" onChange={(event) => setName(event.target.value)} type="text" value={name} />
             </label>
-            <button className="btn btn-primary" disabled={saving || !name.trim()} type="submit">{saving ? 'جارٍ الإضافة...' : 'إضافة النوع'}</button>
+            <label className="form-group" htmlFor="wholesale-price">
+              <span className="form-label">سعر الجملة للمتر</span>
+              <input className="form-input" dir="ltr" id="wholesale-price" inputMode="decimal" min="0" onChange={(event) => setWholesalePrice(event.target.value)} step="0.01" type="number" value={wholesalePrice} />
+            </label>
+            <button className="btn btn-primary" disabled={saving || !name.trim() || wholesalePrice === ''} type="submit">{saving ? 'جارٍ الإضافة...' : 'إضافة النوع'}</button>
           </form>
           {!products.length ? (
             <div className="empty-records"><p>لم تضف أي نوع بعد.</p></div>
@@ -73,7 +80,7 @@ export default function ProductsPage() {
             <div className="product-chip-list">
               {products.map((product) => (
                 <div className="product-chip" key={product._id}>
-                  <span>{product.name}</span>
+                  <span>{product.name} <small>جملة {currency.format(product.wholesalePrice)}</small></span>
                   <button aria-label={`حذف ${product.name}`} onClick={() => void removeProduct(product)} type="button">×</button>
                 </div>
               ))}

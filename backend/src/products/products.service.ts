@@ -11,15 +11,19 @@ export class ProductsService {
     return this.productModel.find({ userId }).sort({ name: 1 }).exec();
   }
 
-  async create(userId: string, name: unknown) {
+  async create(userId: string, name: unknown, wholesalePrice: unknown) {
     const cleanName = typeof name === 'string' ? name.trim() : '';
     if (!cleanName || cleanName.length > 120) {
       throw new BadRequestException('Product name must be between 1 and 120 characters');
     }
 
+    if (typeof wholesalePrice !== 'number' || !Number.isFinite(wholesalePrice) || wholesalePrice < 0) {
+      throw new BadRequestException('Wholesale price must be zero or greater');
+    }
+
     const existing = await this.productModel.findOne({ userId, name: cleanName }).exec();
     if (existing) return existing;
-    return this.productModel.create({ userId, name: cleanName });
+    return this.productModel.create({ userId, name: cleanName, wholesalePrice });
   }
 
   async remove(userId: string, id: string) {

@@ -15,8 +15,8 @@ export class ProductsController {
   }
 
   @Post()
-  create(@Headers('authorization') authorization: string | undefined, @Body() body: { name?: unknown } | undefined) {
-    return this.productsService.create(this.authService.verifyAuthorizationHeader(authorization).sub, body?.name);
+  create(@Headers('authorization') authorization: string | undefined, @Body() body: { name?: unknown; wholesalePrice?: unknown } | undefined) {
+    return this.productsService.create(this.authService.verifyAuthorizationHeader(authorization).sub, body?.name, body?.wholesalePrice);
   }
 
   @Delete(':id')

@@ -10,6 +10,8 @@ import { apiRequest, currency, DayResponse, isValidIsoDate, Product, todayIsoDat
 type EntryMode = 'sale' | 'adjustment';
 type SaleDraft = { id: string; item: string; price: string; meters: string };
 
+const arabicSorter = new Intl.Collator('ar', { sensitivity: 'base' });
+
 function newSaleRow(): SaleDraft {
   return { id: crypto.randomUUID(), item: '', price: '', meters: '' };
 }
@@ -86,7 +88,7 @@ function CreateContent() {
   useEffect(() => {
     if (!token) return;
     apiRequest<Product[]>('/products', token)
-      .then(setProducts)
+      .then((items) => setProducts([...items].sort((first, second) => arabicSorter.compare(first.name, second.name))))
       .catch(() => setProducts([]));
   }, [token]);
 
@@ -441,6 +443,9 @@ function CreateContent() {
 
               <button className="btn btn-primary confirm-button" disabled={saving} type="submit">
                 {saving ? 'جارٍ التسجيل...' : direction === '+' ? 'تأكيد وتسجيل الزيادة' : 'تأكيد وتسجيل الخصم'}
+              </button>
+              <button className="cash-reasons-button" onClick={() => router.push(`/details?date=${selectedDate}&view=cash`)} type="button">
+                عرض كل أسباب حركة الخزنة
               </button>
             </form>
           )}
