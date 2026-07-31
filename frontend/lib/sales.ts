@@ -19,7 +19,9 @@ export type MonthResponse = {
   total: number;
 };
 
-export type SaleItem = { item: string; price: number };
+export type SaleItem = { item: string; price: number; meters: number };
+
+export type Product = { _id: string; name: string };
 
 export type SaleReceipt = {
   number: number | null;
@@ -28,6 +30,7 @@ export type SaleReceipt = {
   paidAmount: number;
   remainingAmount: number;
   payments: { amount: number; date: string; createdAt: string }[];
+  paymentMethod: 'cash' | 'instapay' | 'wallet';
   createdAt: string;
   legacy: boolean;
 };
@@ -54,6 +57,7 @@ export type DraftSaleRow = {
   id: string;
   item: string;
   price: string;
+  meters: string;
   confirmed: boolean;
 };
 

@@ -31,20 +31,20 @@ export class RecordsController {
   addSale(
     @Headers('authorization') authorization: string | undefined,
     @Param('date') date: string,
-    @Body() body: { item?: unknown; price?: unknown } | undefined
+    @Body() body: { item?: unknown; price?: unknown; meters?: unknown } | undefined
   ) {
     const user = this.authService.verifyAuthorizationHeader(authorization);
-    return this.recordsService.addSale(user.sub, date, body?.item, body?.price);
+    return this.recordsService.addSale(user.sub, date, body?.item, body?.price, body?.meters);
   }
 
   @Post('day/:date/sales/bulk')
   addSales(
     @Headers('authorization') authorization: string | undefined,
     @Param('date') date: string,
-    @Body() body: { sales?: unknown; paidAmount?: unknown } | undefined
+    @Body() body: { sales?: unknown; paidAmount?: unknown; paymentMethod?: unknown } | undefined
   ) {
     const user = this.authService.verifyAuthorizationHeader(authorization);
-    return this.recordsService.addSales(user.sub, date, body?.sales, body?.paidAmount);
+    return this.recordsService.addSales(user.sub, date, body?.sales, body?.paidAmount, body?.paymentMethod);
   }
 
   @Post('sales/:number/payments')

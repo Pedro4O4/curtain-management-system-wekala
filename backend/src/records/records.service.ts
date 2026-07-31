@@ -5,7 +5,7 @@ import { isFutureDate, isValidIsoDate, isValidMonth, monthDates, todayIsoDate } 
 import { DailyRecord, DailyRecordDocument } from './daily-record.schema';
 import { User, UserDocument } from '../users/user.schema';
 
-type SaleLine = { item: string; price: number };
+type SaleLine = { item: string; price: number; meters: number };
 
 type SaleReceiptSummary = {
   number: number | null;
@@ -14,6 +14,7 @@ type SaleReceiptSummary = {
   paidAmount: number;
   remainingAmount: number;
   payments: { amount: number; date: string; createdAt: Date }[];
+  paymentMethod: 'cash' | 'instapay' | 'wallet';
   createdAt: Date;
   legacy: boolean;
 };
@@ -45,18 +46,19 @@ export class RecordsService {
   private toReceipts(record: Pick<DailyRecord, 'sales' | 'receipts'>): SaleReceiptSummary[] {
     const legacyReceipts = record.sales.map((sale) => ({
       number: null,
-      items: [{ item: sale.item, price: sale.price }],
+      items: [{ item: sale.item, price: sale.price, meters: sale.meters ?? 1 }],
       total: sale.price,
       paidAmount: sale.price,
       remainingAmount: 0,
       payments: [],
+      paymentMethod: 'cash' as const,
       createdAt: new Date(0),
       legacy: true
     }));
 
     const savedReceipts = (record.receipts ?? []).map((receipt) => ({
       number: receipt.number,
-      items: receipt.items.map((item) => ({ item: item.item, price: item.price })),
+      items: receipt.items.map((item) => ({ item: item.item, price: item.price, meters: item.meters ?? 1 })),
       total: receipt.total,
       paidAmount: receipt.paidAmount ?? receipt.total,
       remainingAmount: receipt.remainingAmount ?? 0,
@@ -65,6 +67,7 @@ export class RecordsService {
         date: payment.date,
         createdAt: payment.createdAt
       })),
+      paymentMethod: receipt.paymentMethod ?? 'cash',
       createdAt: receipt.createdAt,
       legacy: false
     }));
@@ -199,11 +202,11 @@ export class RecordsService {
     };
   }
 
-  async addSale(userId: string, date: string, item: unknown, price: unknown) {
-    return this.addSales(userId, date, [{ item, price }]);
+  async addSale(userId: string, date: string, item: unknown, price: unknown, meters: unknown) {
+    return this.addSales(userId, date, [{ item, price, meters }]);
   }
 
-  async addSales(userId: string, date: string, sales: unknown, paidAmount?: unknown) {
+  async addSales(userId: string, date: string, sales: unknown, paidAmount?: unknown, paymentMethod?: unknown) {
     if (!Array.isArray(sales) || sales.length === 0) {
       throw new BadRequestException('At least one sale is required');
     }
@@ -214,10 +217,11 @@ export class RecordsService {
 
     const items = sales.map((sale) => {
       const saleItem = sale && typeof sale === 'object'
-        ? sale as { item?: unknown; price?: unknown }
+        ? sale as { item?: unknown; price?: unknown; meters?: unknown }
         : null;
       const item = typeof saleItem?.item === 'string' ? saleItem.item.trim() : '';
       const price = saleItem?.price;
+      const meters = saleItem?.meters;
 
       if (!item) {
         throw new BadRequestException('Item name is required');
@@ -231,7 +235,11 @@ export class RecordsService {
         throw new BadRequestException('Price must be greater than zero');
       }
 
-      return { item, price };
+      if (typeof meters !== 'number' || !Number.isFinite(meters) || meters <= 0) {
+        throw new BadRequestException('Meters must be greater than zero');
+      }
+
+      return { item, price, meters };
     });
 
     if (!isValidIsoDate(date)) {
@@ -242,10 +250,15 @@ export class RecordsService {
       throw new ForbiddenException('Future days are locked');
     }
 
-    const total = items.reduce((sum, item) => sum + item.price, 0);
+    const total = items.reduce((sum, item) => sum + (item.price * item.meters), 0);
     const payment = paidAmount === undefined ? total : paidAmount;
+    const method = paymentMethod === undefined ? 'cash' : paymentMethod;
     if (typeof payment !== 'number' || !Number.isFinite(payment) || payment < 0 || payment > total) {
       throw new BadRequestException('Paid amount must be between zero and the sale total');
+    }
+
+    if (method !== 'cash' && method !== 'instapay' && method !== 'wallet') {
+      throw new BadRequestException('Invalid payment method');
     }
 
     const receipt = {
@@ -254,6 +267,7 @@ export class RecordsService {
       total,
       paidAmount: payment,
       remainingAmount: total - payment,
+      paymentMethod: method,
       payments: payment > 0 ? [{ amount: payment, date, createdAt: new Date() }] : [],
       createdAt: new Date()
     };

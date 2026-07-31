@@ -145,7 +145,7 @@ export default function AllPage() {
             <button className="quick-action adjustment-action" disabled={!selectedDate} onClick={() => openCreate('adjustment')} type="button">
               <span className="quick-action-icon" aria-hidden="true">±</span>
               <span>
-                <strong>خصم أو زيادة</strong>
+                <strong>الخزنة</strong>
                 <small>دخل أو خرج غير مرتبط ببيعة</small>
               </span>
               <span className="action-arrow" aria-hidden="true">‹</span>

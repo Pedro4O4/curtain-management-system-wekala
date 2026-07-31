@@ -7,6 +7,8 @@ import { useSession } from '../../components/use-session';
 import { useToast } from '../../components/toast-context';
 import { apiRequest, currency, DayResponse, isValidIsoDate, todayIsoDate } from '../../lib/sales';
 
+const paymentMethodLabel = { cash: 'كاش', instapay: 'InstaPay', wallet: 'محفظة' } as const;
+
 function DetailsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -100,7 +102,7 @@ function DetailsContent() {
           />
         </label>
         <div className="details-actions">
-          <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/create?mode=adjustment&date=${date}`)} type="button">خصم أو زيادة</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/create?mode=adjustment&date=${date}`)} type="button">الخزنة</button>
           <button className="btn btn-primary btn-sm" onClick={() => router.push(`/create?mode=sale&date=${date}`)} type="button">+ بيعة</button>
         </div>
       </div>
@@ -146,14 +148,15 @@ function DetailsContent() {
                     <summary className="receipt-header">
                       <span className="receipt-number">{sale.number === null ? 'بيعة قديمة' : `بيعة رقم ${sale.number}`}</span>
                       <span className="receipt-meta">{sale.items.length} {sale.items.length === 1 ? 'صنف' : 'أصناف'}</span>
+                      {!sale.legacy && <span className="receipt-method">{paymentMethodLabel[sale.paymentMethod]}</span>}
                       <strong>{currency.format(sale.total)}</strong>
                       <span className="receipt-toggle" aria-hidden="true">⌄</span>
                     </summary>
                     <div className="receipt-items">
                       {sale.items.map((item, itemIndex) => (
                         <div className="receipt-item" key={`${item.item}-${itemIndex}`}>
-                          <span>{item.item}</span>
-                          <strong>{currency.format(item.price)}</strong>
+                          <span>{item.item} <small>{item.meters} متر</small></span>
+                          <strong>{currency.format(item.price * item.meters)}</strong>
                         </div>
                       ))}
                     </div>
@@ -167,7 +170,7 @@ function DetailsContent() {
             <div className="records-heading">
               <div>
                 <span className="eyebrow">الخزنة</span>
-                <h3>خصم وزيادة</h3>
+                <h3>حركة الخزنة</h3>
               </div>
               <span className="records-count">{dayData?.adjustments.length ?? 0}</span>
             </div>

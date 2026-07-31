@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { MouseEvent, ReactNode, useEffect } from 'react';
+import { MouseEvent, ReactNode, useEffect, useState } from 'react';
 import { useSession } from './use-session';
 
 type AppNavProps = {
@@ -12,12 +12,14 @@ type AppNavProps = {
 const links = [
   { href: '/all', label: 'الرئيسية', icon: '⌂' },
   { href: '/detailes/sales', label: 'سجل المبيعات', icon: '▤' },
+  { href: '/products', label: 'أنواع الستائر', icon: '◇' },
 ];
 
 export function AppNav({ children }: AppNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { token, user, ready, logout } = useSession();
+  const [saleRecordPickerOpen, setSaleRecordPickerOpen] = useState(false);
 
   useEffect(() => {
     if (ready && !token) {
@@ -45,12 +47,14 @@ export function AppNav({ children }: AppNavProps) {
 
   function handleNavigation(event: MouseEvent<HTMLAnchorElement>, href: string) {
     if (href !== '/detailes/sales') return;
-
-    const selectedDate = window.localStorage.getItem('el-wekala-selected-date');
-    if (!selectedDate) return;
-
     event.preventDefault();
-    router.push(`${href}?date=${selectedDate}`);
+    setSaleRecordPickerOpen(true);
+  }
+
+  function openRetailSales() {
+    const selectedDate = window.localStorage.getItem('el-wekala-selected-date');
+    setSaleRecordPickerOpen(false);
+    router.push(selectedDate ? `/detailes/sales?date=${selectedDate}` : '/detailes/sales');
   }
 
   // Active page info
@@ -59,12 +63,15 @@ export function AppNav({ children }: AppNavProps) {
     ? 'قطاعي'
     : pathname === '/details'
       ? 'ملخص اليوم'
+      : pathname === '/products'
+        ? 'أنواع الستائر'
       : activePage?.label ?? 'الوكالة للستائر';
   const subtitles: Record<string, string> = {
     '/all': 'سجّل يومك بسهولة ومن مكان واحد',
     '/create': 'بيع سريع وحركات الخزنة',
     '/details': 'المبيعات والحركات النقدية',
     '/detailes/sales': 'كل المبيعات التي تم تسجيلها',
+    '/products': 'أنواع الستائر الجاهزة للاختيار عند البيع',
   };
 
   return (
@@ -103,6 +110,35 @@ export function AppNav({ children }: AppNavProps) {
       </nav>
 
       <div className="app-content">{children}</div>
+
+      {saleRecordPickerOpen && (
+        <div className="sale-record-overlay" onMouseDown={() => setSaleRecordPickerOpen(false)} role="presentation">
+          <section
+            aria-label="اختيار سجل المبيعات"
+            aria-modal="true"
+            className="sale-record-picker"
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <button aria-label="إغلاق" className="sale-picker-close" onClick={() => setSaleRecordPickerOpen(false)} type="button">×</button>
+            <span className="eyebrow">سجل المبيعات</span>
+            <h2>اختر نوع البيع</h2>
+            <p>اختر القطاع الذي تريد عرض مبيعاته.</p>
+            <div className="sale-picker-options">
+              <button className="sale-picker-option retail" onClick={openRetailSales} type="button">
+                <span aria-hidden="true">◈</span>
+                <strong>قطاعي</strong>
+                <small>عرض سجل مبيعات القطاعي</small>
+              </button>
+              <button className="sale-picker-option wholesale" disabled type="button">
+                <span aria-hidden="true">▦</span>
+                <strong>جملة</strong>
+                <small>قريبًا</small>
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

@@ -5,13 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AppNav } from '../../components/app-nav';
 import { useSession } from '../../components/use-session';
 import { useToast } from '../../components/toast-context';
-import { apiRequest, currency, DayResponse, isValidIsoDate, todayIsoDate } from '../../lib/sales';
+import { apiRequest, currency, DayResponse, isValidIsoDate, Product, todayIsoDate } from '../../lib/sales';
 
 type EntryMode = 'sale' | 'adjustment';
-type SaleDraft = { id: string; item: string; price: string };
+type SaleDraft = { id: string; item: string; price: string; meters: string };
 
 function newSaleRow(): SaleDraft {
-  return { id: crypto.randomUUID(), item: '', price: '' };
+  return { id: crypto.randomUUID(), item: '', price: '', meters: '' };
 }
 
 function isUsableDate(value: string | null) {
@@ -27,10 +27,12 @@ function CreateContent() {
   const [mode, setMode] = useState<EntryMode>('sale');
   const [saleRows, setSaleRows] = useState<SaleDraft[]>([newSaleRow()]);
   const [paidAmount, setPaidAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'instapay' | 'wallet'>('cash');
   const [direction, setDirection] = useState<'+' | '-'>('+');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [summary, setSummary] = useState<DayResponse | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryRefreshKey, setSummaryRefreshKey] = useState(0);
@@ -82,12 +84,19 @@ function CreateContent() {
   }, [selectedDate, showToast, summaryRefreshKey, token]);
 
   useEffect(() => {
+    if (!token) return;
+    apiRequest<Product[]>('/products', token)
+      .then(setProducts)
+      .catch(() => setProducts([]));
+  }, [token]);
+
+  useEffect(() => {
     if (!focusLastItem) return;
     lastItemRef.current?.focus();
     setFocusLastItem(false);
   }, [focusLastItem, saleRows.length]);
 
-  function updateSaleRow(id: string, field: 'item' | 'price', value: string) {
+  function updateSaleRow(id: string, field: 'item' | 'price' | 'meters', value: string) {
     setSaleRows((rows) => rows.map((row) => row.id === id ? { ...row, [field]: value } : row));
   }
 
@@ -118,13 +127,13 @@ function CreateContent() {
 
   async function saveSales(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const rowsToSave = saleRows.map((row) => ({ item: row.item.trim(), price: Number(row.price) }));
-    const totalToSave = rowsToSave.reduce((total, row) => total + (Number.isFinite(row.price) ? row.price : 0), 0);
+    const rowsToSave = saleRows.map((row) => ({ item: row.item.trim(), price: Number(row.price), meters: Number(row.meters) }));
+    const totalToSave = rowsToSave.reduce((total, row) => total + (Number.isFinite(row.price) && Number.isFinite(row.meters) ? row.price * row.meters : 0), 0);
     const paidToSave = paidAmount === '' ? totalToSave : Number(paidAmount);
-    const hasIncompleteRow = rowsToSave.some((row) => !row.item || !Number.isFinite(row.price) || row.price <= 0);
+    const hasIncompleteRow = rowsToSave.some((row) => !row.item || !Number.isFinite(row.price) || row.price <= 0 || !Number.isFinite(row.meters) || row.meters <= 0);
 
     if (hasIncompleteRow) {
-      showToast('اكتب الصنف والسعر الصحيح في كل صف أولًا.', 'info');
+      showToast('اكتب الصنف والسعر وعدد الأمتار الصحيح في كل صف أولًا.', 'info');
       return;
     }
 
@@ -139,7 +148,7 @@ function CreateContent() {
     try {
       const response = await apiRequest<DayResponse>(`/records/day/${selectedDate}/sales/bulk`, token, {
         method: 'POST',
-        body: JSON.stringify({ sales: rowsToSave, paidAmount: paidToSave }),
+        body: JSON.stringify({ sales: rowsToSave, paidAmount: paidToSave, paymentMethod }),
       });
       summaryRequestId.current += 1;
       setSummary(response);
@@ -147,6 +156,7 @@ function CreateContent() {
       setLoadingSummary(false);
       setSaleRows([newSaleRow()]);
       setPaidAmount('');
+      setPaymentMethod('cash');
       showToast(
         `تم تسجيل بيعة رقم ${response.createdReceipt?.number ?? ''} بنجاح.`,
         'success'
@@ -189,7 +199,7 @@ function CreateContent() {
     }
   }
 
-  const saleTotal = saleRows.reduce((total, row) => total + (Number(row.price) || 0), 0);
+  const saleTotal = saleRows.reduce((total, row) => total + ((Number(row.price) || 0) * (Number(row.meters) || 0)), 0);
   const enteredPaidAmount = Number(paidAmount);
   const currentPaidAmount = paidAmount === '' ? saleTotal : Number.isFinite(enteredPaidAmount) ? Math.min(Math.max(enteredPaidAmount, 0), saleTotal) : 0;
   const currentRemainingAmount = saleTotal - currentPaidAmount;
@@ -245,7 +255,7 @@ function CreateContent() {
           type="button"
         >
           <span aria-hidden="true">±</span>
-          خصم أو زيادة
+          الخزنة
         </button>
       </div>
 
@@ -253,6 +263,9 @@ function CreateContent() {
         <div className="entry-card card-surface">
           {mode === 'sale' ? (
             <form onSubmit={saveSales}>
+              <datalist id="curtain-types">
+                {products.map((product) => <option key={product._id} value={product.name} />)}
+              </datalist>
               <div className="entry-card-heading">
                 <div>
                   <h3>بيعة جديدة</h3>
@@ -264,7 +277,8 @@ function CreateContent() {
               <div className="sale-table">
                 <div className="sale-table-head" aria-hidden="true">
                   <span>الصنف</span>
-                  <span>السعر</span>
+                  <span>سعر المتر</span>
+                  <span>المتر</span>
                   <span />
                 </div>
                 {saleRows.map((row, index) => (
@@ -274,12 +288,13 @@ function CreateContent() {
                       autoFocus={index === 0}
                       className="form-input"
                       id={`item-${row.id}`}
+                      list="curtain-types"
                       onChange={(event) => updateSaleRow(row.id, 'item', event.target.value)}
                       ref={index === saleRows.length - 1 ? lastItemRef : undefined}
                       type="text"
                       value={row.item}
                     />
-                    <label className="sr-only" htmlFor={`price-${row.id}`}>سعر الصنف رقم {index + 1}</label>
+                    <label className="sr-only" htmlFor={`price-${row.id}`}>سعر المتر للصنف رقم {index + 1}</label>
                     <div className="money-input no-suffix">
                       <input
                         className="form-input"
@@ -293,6 +308,18 @@ function CreateContent() {
                         value={row.price}
                       />
                     </div>
+                    <label className="sr-only" htmlFor={`meters-${row.id}`}>عدد الأمتار للصنف رقم {index + 1}</label>
+                    <input
+                      className="form-input meters-input"
+                      dir="ltr"
+                      id={`meters-${row.id}`}
+                      inputMode="decimal"
+                      min="0.01"
+                      onChange={(event) => updateSaleRow(row.id, 'meters', event.target.value)}
+                      step="0.01"
+                      type="number"
+                      value={row.meters}
+                    />
                     <button
                       aria-label={`حذف الصنف رقم ${index + 1}`}
                       className="remove-row"
@@ -340,6 +367,14 @@ function CreateContent() {
                   value={paidAmount}
                 />
               </label>
+              <label className="form-group payment-method-field" htmlFor="payment-method">
+                <span className="form-label">طريقة الدفع</span>
+                <select className="form-input" id="payment-method" onChange={(event) => setPaymentMethod(event.target.value as 'cash' | 'instapay' | 'wallet')} value={paymentMethod}>
+                  <option value="cash">كاش</option>
+                  <option value="instapay">InstaPay</option>
+                  <option value="wallet">محفظة</option>
+                </select>
+              </label>
               <button className="btn btn-primary confirm-button" disabled={saving} type="submit">
                 {saving ? 'جارٍ التسجيل...' : 'تأكيد وتسجيل البيعة'}
               </button>
@@ -348,7 +383,7 @@ function CreateContent() {
             <form onSubmit={saveAdjustment}>
               <div className="entry-card-heading">
                 <div>
-                  <h3>خصم أو زيادة</h3>
+                  <h3>الخزنة</h3>
                   <p>حركة نقدية مستقلة عن المبيعات.</p>
                 </div>
               </div>

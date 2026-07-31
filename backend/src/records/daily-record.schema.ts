@@ -8,6 +8,9 @@ export class SaleItem {
 
   @Prop({ required: true, min: 0 })
   price!: number;
+
+  @Prop({ required: true, min: 0.01, default: 1 })
+  meters!: number;
 }
 
 export const SaleItemSchema = SchemaFactory.createForClass(SaleItem);
@@ -42,6 +45,9 @@ export class SaleReceipt {
 
   @Prop({ required: true, min: 0, default: 0 })
   remainingAmount!: number;
+
+  @Prop({ required: true, enum: ['cash', 'instapay', 'wallet'], default: 'cash' })
+  paymentMethod!: 'cash' | 'instapay' | 'wallet';
 
   @Prop({ type: [ReceiptPaymentSchema], default: [] })
   payments!: ReceiptPayment[];
