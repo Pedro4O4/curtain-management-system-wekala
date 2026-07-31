@@ -7,11 +7,14 @@ import { useSession } from '../../components/use-session';
 import { useToast } from '../../components/toast-context';
 import { apiRequest, currency, DayResponse, isValidIsoDate, todayIsoDate } from '../../lib/sales';
 
+const paymentMethodLabel = { cash: 'كاش', instapay: 'InstaPay', wallet: 'محفظة' } as const;
+
 function DetailsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { token, ready } = useSession();
   const { showToast } = useToast();
+  const cashOnly = searchParams.get('view') === 'cash';
   const [date, setDate] = useState('');
   const [dayData, setDayData] = useState<DayResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +24,7 @@ function DetailsContent() {
 
   useEffect(() => {
     const requestedDate = searchParams.get('date');
-    const today = todayIsoDate();
+  const today = todayIsoDate();
     const nextDate = requestedDate && isValidIsoDate(requestedDate) && requestedDate <= today ? requestedDate : today;
     if (nextDate !== date) {
       dayRequestId.current += 1;
@@ -76,6 +79,8 @@ function DetailsContent() {
     return true;
   }
 
+  const netToday = dayData?.netTotal ?? ((dayData?.saleTotal ?? 0) - (dayData?.remainingTotal ?? 0) + (dayData?.adjustmentTotal ?? 0));
+
   if (!ready || !token) return null;
 
   return (
@@ -100,14 +105,14 @@ function DetailsContent() {
           />
         </label>
         <div className="details-actions">
-          <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/create?mode=adjustment&date=${date}`)} type="button">خصم أو زيادة</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/create?mode=adjustment&date=${date}`)} type="button">الخزنة</button>
           <button className="btn btn-primary btn-sm" onClick={() => router.push(`/create?mode=sale&date=${date}`)} type="button">+ بيعة</button>
         </div>
       </div>
 
       <div className="details-heading">
-        <span className="eyebrow">ملخص اليوم</span>
-        <h2>{date || '...'}</h2>
+        <span className="eyebrow">{cashOnly ? 'الخزنة' : 'ملخص اليوم'}</span>
+        <h2>{cashOnly ? 'أسباب حركة الخزنة' : (date || '...')}</h2>
       </div>
 
       {loading ? (
@@ -119,14 +124,14 @@ function DetailsContent() {
         </div>
       ) : (
         <>
-          <div className="daily-stats">
-            <div className="daily-stat primary"><span>صافي اليوم</span><strong>{currency.format(dayData?.dayTotal ?? 0)}</strong></div>
-            <div className="daily-stat"><span>إجمالي البيع</span><strong>{currency.format(dayData?.saleTotal ?? 0)}</strong></div>
+          {!cashOnly && <div className="daily-stats">
+            <div className="daily-stat primary"><span>صافي اليوم</span><strong>{currency.format(netToday)}</strong></div>
+            <div className="daily-stat"><span>المُحصّل من البيع</span><strong>{currency.format(dayData?.saleTotal ?? 0)}</strong></div>
             <div className="daily-stat"><span>دخل / خرج مستقل</span><strong className={(dayData?.adjustmentTotal ?? 0) < 0 ? 'amount-negative' : 'amount-positive'}>{currency.format(dayData?.adjustmentTotal ?? 0)}</strong></div>
             <div className="daily-stat"><span>عدد البيعات</span><strong>{dayData?.receipts.length ?? 0}</strong></div>
-          </div>
+          </div>}
 
-          <article className="records-card card-surface">
+          {!cashOnly && <article className="records-card card-surface">
             <div className="records-heading">
               <div>
                 <span className="eyebrow">المبيعات</span>
@@ -146,14 +151,15 @@ function DetailsContent() {
                     <summary className="receipt-header">
                       <span className="receipt-number">{sale.number === null ? 'بيعة قديمة' : `بيعة رقم ${sale.number}`}</span>
                       <span className="receipt-meta">{sale.items.length} {sale.items.length === 1 ? 'صنف' : 'أصناف'}</span>
+                      {!sale.legacy && <span className="receipt-method">{paymentMethodLabel[sale.paymentMethod]}</span>}
                       <strong>{currency.format(sale.total)}</strong>
                       <span className="receipt-toggle" aria-hidden="true">⌄</span>
                     </summary>
                     <div className="receipt-items">
                       {sale.items.map((item, itemIndex) => (
                         <div className="receipt-item" key={`${item.item}-${itemIndex}`}>
-                          <span>{item.item}</span>
-                          <strong>{currency.format(item.price)}</strong>
+                          <span>{item.item} <small>{item.meters} متر</small></span>
+                          <strong>{currency.format(item.price * item.meters)}</strong>
                         </div>
                       ))}
                     </div>
@@ -161,13 +167,13 @@ function DetailsContent() {
                 ))}
               </div>
             )}
-          </article>
+          </article>}
 
-          <article className="records-card card-surface">
+          <article className="records-card card-surface" id="cash-reasons">
             <div className="records-heading">
               <div>
                 <span className="eyebrow">الخزنة</span>
-                <h3>خصم وزيادة</h3>
+                <h3>حركة الخزنة</h3>
               </div>
               <span className="records-count">{dayData?.adjustments.length ?? 0}</span>
             </div>

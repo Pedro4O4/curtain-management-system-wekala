@@ -19,12 +19,19 @@ export type MonthResponse = {
   total: number;
 };
 
-export type SaleItem = { item: string; price: number };
+export type SaleItem = { item: string; price: number; meters: number; costPerMeter: number };
+
+export type Product = { _id: string; name: string; wholesalePrice: number };
 
 export type SaleReceipt = {
   number: number | null;
   items: SaleItem[];
   total: number;
+  paidAmount: number;
+  remainingAmount: number;
+  payments: { amount: number; date: string; createdAt: string }[];
+  paymentMethod: 'cash' | 'instapay' | 'wallet';
+  profit: number;
   createdAt: string;
   legacy: boolean;
 };
@@ -39,11 +46,15 @@ export type DayResponse = {
   saleTotal: number;
   adjustmentTotal: number;
   dayTotal: number;
+  profitTotal: number;
+  remainingTotal: number;
+  netTotal: number;
 };
 
 export type SalesListResponse = {
   sales: Array<SaleReceipt & { date: string }>;
   total: number;
+  profitTotal: number;
   receiptCount: number;
 };
 
@@ -51,6 +62,7 @@ export type DraftSaleRow = {
   id: string;
   item: string;
   price: string;
+  meters: string;
   confirmed: boolean;
 };
 

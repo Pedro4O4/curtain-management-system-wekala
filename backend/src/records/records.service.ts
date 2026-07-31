@@ -4,13 +4,19 @@ import { Model } from 'mongoose';
 import { isFutureDate, isValidIsoDate, isValidMonth, monthDates, todayIsoDate } from '../common/date-utils';
 import { DailyRecord, DailyRecordDocument } from './daily-record.schema';
 import { User, UserDocument } from '../users/user.schema';
+import { Product, ProductDocument } from '../products/product.schema';
 
-type SaleLine = { item: string; price: number };
+type SaleLine = { item: string; price: number; meters: number; costPerMeter: number };
 
 type SaleReceiptSummary = {
   number: number | null;
   items: SaleLine[];
   total: number;
+  paidAmount: number;
+  remainingAmount: number;
+  payments: { amount: number; date: string; createdAt: Date }[];
+  paymentMethod: 'cash' | 'instapay' | 'wallet';
+  profit: number;
   createdAt: Date;
   legacy: boolean;
 };
@@ -25,6 +31,9 @@ type DaySummary = {
   saleTotal: number;
   adjustmentTotal: number;
   dayTotal: number;
+  profitTotal: number;
+  remainingTotal: number;
+  netTotal: number;
 };
 
 type SalesListItem = SaleReceiptSummary & { date: string };
@@ -36,22 +45,37 @@ const MAX_ITEM_NAME_LENGTH = 200;
 export class RecordsService {
   constructor(
     @InjectModel(DailyRecord.name) private readonly recordModel: Model<DailyRecordDocument>,
-    @InjectModel(User.name) private readonly userModel: Model<UserDocument>
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>
   ) {}
 
   private toReceipts(record: Pick<DailyRecord, 'sales' | 'receipts'>): SaleReceiptSummary[] {
     const legacyReceipts = record.sales.map((sale) => ({
       number: null,
-      items: [{ item: sale.item, price: sale.price }],
+      items: [{ item: sale.item, price: sale.price, meters: sale.meters ?? 1, costPerMeter: sale.costPerMeter ?? 0 }],
       total: sale.price,
+      paidAmount: sale.price,
+      remainingAmount: 0,
+      payments: [],
+      paymentMethod: 'cash' as const,
+      profit: 0,
       createdAt: new Date(0),
       legacy: true
     }));
 
     const savedReceipts = (record.receipts ?? []).map((receipt) => ({
       number: receipt.number,
-      items: receipt.items.map((item) => ({ item: item.item, price: item.price })),
+      items: receipt.items.map((item) => ({ item: item.item, price: item.price, meters: item.meters ?? 1, costPerMeter: item.costPerMeter ?? 0 })),
       total: receipt.total,
+      paidAmount: receipt.paidAmount ?? receipt.total,
+      remainingAmount: receipt.remainingAmount ?? 0,
+      payments: (receipt.payments ?? []).map((payment) => ({
+        amount: payment.amount,
+        date: payment.date,
+        createdAt: payment.createdAt
+      })),
+      paymentMethod: receipt.paymentMethod ?? 'cash',
+      profit: receipt.items.reduce((sum, item) => sum + ((item.price - (item.costPerMeter ?? 0)) * (item.meters ?? 1)), 0),
       createdAt: receipt.createdAt,
       legacy: false
     }));
@@ -62,7 +86,10 @@ export class RecordsService {
   private computeSummary(record: Pick<DailyRecord, 'sales' | 'receipts' | 'adjustments'>, date: string): DaySummary {
     const receipts = this.toReceipts(record);
     const sales = receipts.flatMap((receipt) => receipt.items);
-    const saleTotal = receipts.reduce((total, receipt) => total + receipt.total, 0);
+    // Daily cash should include only money actually collected, not unpaid balances.
+    const saleTotal = receipts.reduce((total, receipt) => total + receipt.paidAmount, 0);
+    const profitTotal = receipts.reduce((total, receipt) => total + receipt.profit, 0);
+    const remainingTotal = receipts.reduce((total, receipt) => total + receipt.remainingAmount, 0);
     const adjustmentTotal = record.adjustments.reduce(
       (total, adjustment) => total + (adjustment.direction === '+' ? adjustment.amount : -adjustment.amount),
       0
@@ -76,7 +103,10 @@ export class RecordsService {
       adjustments: record.adjustments,
       saleTotal,
       adjustmentTotal,
-      dayTotal: saleTotal + adjustmentTotal
+      dayTotal: saleTotal + adjustmentTotal,
+      profitTotal,
+      remainingTotal,
+      netTotal: saleTotal - remainingTotal + adjustmentTotal
     };
   }
 
@@ -115,7 +145,7 @@ export class RecordsService {
     }
 
     if (isFutureDate(date)) {
-      return { date, locked: true, sales: [], receipts: [], adjustments: [], saleTotal: 0, adjustmentTotal: 0, dayTotal: 0 };
+      return { date, locked: true, sales: [], receipts: [], adjustments: [], saleTotal: 0, adjustmentTotal: 0, dayTotal: 0, profitTotal: 0, remainingTotal: 0, netTotal: 0 };
     }
 
     const record = await this.recordModel.findOne({ userId, date }).exec();
@@ -180,16 +210,17 @@ export class RecordsService {
 
     return {
       sales,
-      total: sales.reduce((sum, sale) => sum + sale.total, 0),
+      total: sales.reduce((sum, sale) => sum + sale.paidAmount, 0),
+      profitTotal: sales.reduce((sum, sale) => sum + sale.profit, 0),
       receiptCount: sales.length
     };
   }
 
-  async addSale(userId: string, date: string, item: unknown, price: unknown) {
-    return this.addSales(userId, date, [{ item, price }]);
+  async addSale(userId: string, date: string, item: unknown, price: unknown, meters: unknown) {
+    return this.addSales(userId, date, [{ item, price, meters }]);
   }
 
-  async addSales(userId: string, date: string, sales: unknown) {
+  async addSales(userId: string, date: string, sales: unknown, paidAmount?: unknown, paymentMethod?: unknown) {
     if (!Array.isArray(sales) || sales.length === 0) {
       throw new BadRequestException('At least one sale is required');
     }
@@ -200,10 +231,11 @@ export class RecordsService {
 
     const items = sales.map((sale) => {
       const saleItem = sale && typeof sale === 'object'
-        ? sale as { item?: unknown; price?: unknown }
+        ? sale as { item?: unknown; price?: unknown; meters?: unknown }
         : null;
       const item = typeof saleItem?.item === 'string' ? saleItem.item.trim() : '';
       const price = saleItem?.price;
+      const meters = saleItem?.meters;
 
       if (!item) {
         throw new BadRequestException('Item name is required');
@@ -217,7 +249,11 @@ export class RecordsService {
         throw new BadRequestException('Price must be greater than zero');
       }
 
-      return { item, price };
+      if (typeof meters !== 'number' || !Number.isFinite(meters) || meters <= 0) {
+        throw new BadRequestException('Meters must be greater than zero');
+      }
+
+      return { item, price, meters };
     });
 
     if (!isValidIsoDate(date)) {
@@ -228,10 +264,31 @@ export class RecordsService {
       throw new ForbiddenException('Future days are locked');
     }
 
+    const registeredProducts = await this.productModel.find({ userId, name: { $in: items.map((item) => item.item) } }).exec();
+    const costsByName = new Map(registeredProducts.map((product) => [product.name, product.wholesalePrice ?? 0]));
+    if (items.some((item) => !costsByName.has(item.item))) {
+      throw new BadRequestException('اختر نوع ستارة مسجّلًا حتى يتم حساب المكسب بدقة');
+    }
+    const saleItems = items.map((item) => ({ ...item, costPerMeter: costsByName.get(item.item) ?? 0 }));
+    const total = saleItems.reduce((sum, item) => sum + (item.price * item.meters), 0);
+    const payment = paidAmount === undefined ? total : paidAmount;
+    const method = paymentMethod === undefined ? 'cash' : paymentMethod;
+    if (typeof payment !== 'number' || !Number.isFinite(payment) || payment < 0 || payment > total) {
+      throw new BadRequestException('Paid amount must be between zero and the sale total');
+    }
+
+    if (method !== 'cash' && method !== 'instapay' && method !== 'wallet') {
+      throw new BadRequestException('Invalid payment method');
+    }
+
     const receipt = {
       number: await this.allocateSaleNumber(userId),
-      items,
-      total: items.reduce((sum, item) => sum + item.price, 0),
+      items: saleItems,
+      total,
+      paidAmount: payment,
+      remainingAmount: total - payment,
+      paymentMethod: method,
+      payments: payment > 0 ? [{ amount: payment, date, createdAt: new Date() }] : [],
       createdAt: new Date()
     };
 
@@ -246,6 +303,30 @@ export class RecordsService {
     const summary = this.computeSummary(record, date);
 
     return { ...summary, createdReceipt: { ...receipt, legacy: false } };
+  }
+
+  async addReceiptPayment(userId: string, receiptNumber: string, amount: unknown, date: unknown) {
+    const number = Number(receiptNumber);
+    const paymentDate = typeof date === 'string' ? date : '';
+    if (!Number.isInteger(number) || number < 1) throw new BadRequestException('Invalid sale number');
+    if (!isValidIsoDate(paymentDate) || isFutureDate(paymentDate)) throw new BadRequestException('Invalid payment date');
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('Payment amount must be greater than zero');
+    }
+
+    const record = await this.recordModel.findOne({ userId, 'receipts.number': number }).exec();
+    if (!record) throw new BadRequestException('Sale was not found');
+    const receipt = record.receipts.find((entry) => entry.number === number);
+    if (!receipt) throw new BadRequestException('Sale was not found');
+    const remaining = receipt.remainingAmount ?? 0;
+    if (remaining <= 0) throw new BadRequestException('This sale is already fully paid');
+    if (amount > remaining) throw new BadRequestException('Payment amount exceeds the remaining balance');
+
+    receipt.payments.push({ amount, date: paymentDate, createdAt: new Date() });
+    receipt.paidAmount = (receipt.paidAmount ?? 0) + amount;
+    receipt.remainingAmount = remaining - amount;
+    await record.save();
+    return this.toReceipts(record).find((entry) => entry.number === number);
   }
 
   async addAdjustment(userId: string, date: string, amount: unknown, reason: unknown, direction: unknown) {

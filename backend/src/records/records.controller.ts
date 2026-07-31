@@ -31,20 +31,30 @@ export class RecordsController {
   addSale(
     @Headers('authorization') authorization: string | undefined,
     @Param('date') date: string,
-    @Body() body: { item?: unknown; price?: unknown } | undefined
+    @Body() body: { item?: unknown; price?: unknown; meters?: unknown } | undefined
   ) {
     const user = this.authService.verifyAuthorizationHeader(authorization);
-    return this.recordsService.addSale(user.sub, date, body?.item, body?.price);
+    return this.recordsService.addSale(user.sub, date, body?.item, body?.price, body?.meters);
   }
 
   @Post('day/:date/sales/bulk')
   addSales(
     @Headers('authorization') authorization: string | undefined,
     @Param('date') date: string,
-    @Body() body: { sales?: unknown } | undefined
+    @Body() body: { sales?: unknown; paidAmount?: unknown; paymentMethod?: unknown } | undefined
   ) {
     const user = this.authService.verifyAuthorizationHeader(authorization);
-    return this.recordsService.addSales(user.sub, date, body?.sales);
+    return this.recordsService.addSales(user.sub, date, body?.sales, body?.paidAmount, body?.paymentMethod);
+  }
+
+  @Post('sales/:number/payments')
+  addReceiptPayment(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('number') number: string,
+    @Body() body: { amount?: unknown; date?: unknown } | undefined
+  ) {
+    const user = this.authService.verifyAuthorizationHeader(authorization);
+    return this.recordsService.addReceiptPayment(user.sub, number, body?.amount, body?.date);
   }
 
   @Post('day/:date/adjustments')

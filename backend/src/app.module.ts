@@ -8,6 +8,9 @@ import { AuthService } from './auth/auth.service';
 import { DailyRecord, DailyRecordSchema } from './records/daily-record.schema';
 import { RecordsController } from './records/records.controller';
 import { RecordsService } from './records/records.service';
+import { Product, ProductSchema } from './products/product.schema';
+import { ProductsController } from './products/products.controller';
+import { ProductsService } from './products/products.service';
 import { User, UserSchema } from './users/user.schema';
 import { UsersService } from './users/users.service';
 
@@ -16,7 +19,8 @@ import { UsersService } from './users/users.service';
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
-      { name: DailyRecord.name, schema: DailyRecordSchema }
+      { name: DailyRecord.name, schema: DailyRecordSchema },
+      { name: Product.name, schema: ProductSchema }
     ]),
     MongooseModule.forRootAsync({
       inject: [ConfigService],
@@ -25,7 +29,7 @@ import { UsersService } from './users/users.service';
       })
     })
   ],
-  controllers: [AppController, AuthController, RecordsController],
-  providers: [AppService, UsersService, AuthService, RecordsService]
+  controllers: [AppController, AuthController, RecordsController, ProductsController],
+  providers: [AppService, UsersService, AuthService, RecordsService, ProductsService]
 })
 export class AppModule {}

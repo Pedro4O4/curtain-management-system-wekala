@@ -41,6 +41,7 @@ export default function AllPage() {
   }, [selectedDate, showToast, token]);
 
   const today = todayIsoDate();
+  const netToday = dayData?.netTotal ?? ((dayData?.saleTotal ?? 0) - (dayData?.remainingTotal ?? 0) + (dayData?.adjustmentTotal ?? 0));
 
   function chooseDate(nextDate: string) {
     if (!nextDate || !isValidIsoDate(nextDate) || nextDate > today) {
@@ -145,7 +146,7 @@ export default function AllPage() {
             <button className="quick-action adjustment-action" disabled={!selectedDate} onClick={() => openCreate('adjustment')} type="button">
               <span className="quick-action-icon" aria-hidden="true">±</span>
               <span>
-                <strong>خصم أو زيادة</strong>
+                <strong>الخزنة</strong>
                 <small>دخل أو خرج غير مرتبط ببيعة</small>
               </span>
               <span className="action-arrow" aria-hidden="true">‹</span>
@@ -153,8 +154,12 @@ export default function AllPage() {
           </div>
           <div className="today-summary" aria-live="polite">
             <div>
-              <span>مبيعات اليوم</span>
+              <span>المُحصّل اليوم</span>
               <strong>{currency.format(dayData?.saleTotal ?? 0)}</strong>
+            </div>
+            <div className="today-profit">
+              <span>مكسب اليوم</span>
+              <strong>{currency.format(dayData?.profitTotal ?? 0)}</strong>
             </div>
             <div>
               <span>حركة الخزنة</span>
@@ -162,9 +167,13 @@ export default function AllPage() {
                 {currency.format(dayData?.adjustmentTotal ?? 0)}
               </strong>
             </div>
-            <div>
+            <div className="today-remaining">
+              <span>إجمالي المتبقي</span>
+              <strong>{currency.format(dayData?.remainingTotal ?? 0)}</strong>
+            </div>
+            <div className="today-net">
               <span>صافي اليوم</span>
-              <strong>{currency.format(dayData?.dayTotal ?? 0)}</strong>
+              <strong>{currency.format(netToday)}</strong>
             </div>
           </div>
         </section>
