@@ -286,16 +286,19 @@ function CreateContent() {
                 {saleRows.map((row, index) => (
                   <div className="sale-entry-row" key={row.id}>
                     <label className="sr-only" htmlFor={`item-${row.id}`}>الصنف رقم {index + 1}</label>
-                    <input
-                      autoFocus={index === 0}
-                      className="form-input"
-                      id={`item-${row.id}`}
-                      list="curtain-types"
-                      onChange={(event) => updateSaleRow(row.id, 'item', event.target.value)}
-                      ref={index === saleRows.length - 1 ? lastItemRef : undefined}
-                      type="text"
-                      value={row.item}
-                    />
+                    <div className="sale-item-field">
+                      <span aria-hidden="true">الصنف</span>
+                      <input
+                        autoFocus={index === 0}
+                        className="form-input"
+                        id={`item-${row.id}`}
+                        list="curtain-types"
+                        onChange={(event) => updateSaleRow(row.id, 'item', event.target.value)}
+                        ref={index === saleRows.length - 1 ? lastItemRef : undefined}
+                        type="text"
+                        value={row.item}
+                      />
+                    </div>
                     <label className="sr-only" htmlFor={`price-${row.id}`}>سعر المتر للصنف رقم {index + 1}</label>
                     <div className="sale-numeric-field price-field">
                       <span>سعر المتر</span>

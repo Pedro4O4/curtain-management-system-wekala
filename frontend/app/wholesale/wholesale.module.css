@@ -621,8 +621,7 @@
 
 @media (max-width: 760px) {
   .hero,
-  .accountTopRow,
-  .accountSummary {
+  .accountTopRow {
     align-items: stretch;
     flex-direction: column;
   }
@@ -637,8 +636,24 @@
     width: 100%;
   }
 
+  .addItemButton {
+    min-height: 44px;
+    padding-block: 10px;
+  }
+
   .workspace {
     grid-template-columns: 1fr;
+  }
+
+  .accountSummary,
+  .transaction {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryDescription,
+  .transactionSide {
+    min-width: 0;
+    text-align: right;
   }
 
   .choiceGrid {
@@ -708,8 +723,7 @@
     grid-template-columns: 1fr;
   }
 
-  .balanceBox,
-  .transactionSide {
+  .balanceBox {
     text-align: right;
   }
 }
