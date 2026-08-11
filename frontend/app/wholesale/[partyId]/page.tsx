@@ -80,17 +80,23 @@ function isPaymentAction(action: AccountAction) {
   return action === 'payment_from_customer' || action === 'payment_to_supplier';
 }
 
+function isTradeWithDirectPayment(type: WholesaleTransactionType) {
+  return type === 'sale_to_customer' || type === 'purchase_from_supplier';
+}
+
+function paidInTransactionLabel(type: WholesaleTransactionType) {
+  return type === 'purchase_from_supplier' ? 'المدفوع للمورد في هذه الحركة' : 'المدفوع من العميل في هذه الحركة';
+}
+
 function balanceClass(balance: number) {
   if (balance > 0.005) return styles.balancePositive;
   if (balance < -0.005) return styles.balanceNegative;
   return '';
 }
 
-function transactionEffectCopy(transaction: WholesaleTransaction) {
-  if (Math.abs(transaction.balanceEffect) < 0.005) return 'تمت تسوية الحركة';
-  return transaction.balanceEffect > 0
-    ? `زاد الحساب ${currency.format(transaction.balanceEffect)}`
-    : `خُصم من الحساب ${currency.format(Math.abs(transaction.balanceEffect))}`;
+function balanceAfterTransactionCopy(kind: 'customer' | 'supplier', balance: number) {
+  if (Math.abs(balance) < 0.005) return 'الحساب متساوٍ بعد العملية';
+  return `${wholesaleBalanceLabel(kind, balance)} بعد العملية`;
 }
 
 export default function WholesaleAccountPage() {
@@ -182,6 +188,16 @@ export default function WholesaleAccountPage() {
   );
   const paidNow = Number(paidAmount) || 0;
   const remaining = Math.max(tradeTotal - paidNow, 0);
+  const balancesAfterTransactions = useMemo(() => {
+    if (!account) return [];
+    let currentBalance = account.balance;
+
+    return account.transactions.map((transaction) => {
+      const balanceAfter = currentBalance;
+      currentBalance -= transaction.balanceEffect;
+      return balanceAfter;
+    });
+  }, [account]);
 
   function changeAction(nextAction: AccountAction) {
     setAction(nextAction);
@@ -517,7 +533,10 @@ export default function WholesaleAccountPage() {
                 <div className={styles.empty}>لا توجد حركات مسجلة في هذا الحساب بعد.</div>
               ) : (
                 <div className={styles.ledgerList}>
-                  {account.transactions.map((transaction) => (
+                  {account.transactions.map((transaction, index) => {
+                    const balanceAfter = balancesAfterTransactions[index] ?? 0;
+
+                    return (
                     <article className={styles.transaction} key={transaction._id}>
                       <div>
                         <h4 className={styles.transactionTitle}>{wholesaleTransactionLabel(transaction.type)}</h4>
@@ -535,12 +554,21 @@ export default function WholesaleAccountPage() {
                       <div className={styles.transactionSide}>
                         <span className={styles.detailLabel}>{isPaymentAction(transaction.type) ? 'قيمة الدفعة' : 'إجمالي الحركة'}</span>
                         <strong className={styles.transactionTotal}>{currency.format(transaction.total)}</strong>
-                        <span className={`${styles.transactionEffect} ${transaction.balanceEffect <= 0 ? styles.transactionEffectSettled : ''}`}>
-                          {transactionEffectCopy(transaction)}
+                        {isTradeWithDirectPayment(transaction.type) && (
+                          <dl className={styles.transactionBreakdown}>
+                            <div>
+                              <dt>{paidInTransactionLabel(transaction.type)}</dt>
+                              <dd>{currency.format(transaction.paidAmount)}</dd>
+                            </div>
+                          </dl>
+                        )}
+                        <span className={`${styles.transactionEffect} ${balanceClass(balanceAfter)} ${Math.abs(balanceAfter) < 0.005 ? styles.transactionEffectSettled : ''}`}>
+                          {balanceAfterTransactionCopy(account.party.kind, balanceAfter)}{Math.abs(balanceAfter) >= 0.005 ? `: ${currency.format(Math.abs(balanceAfter))}` : ''}
                         </span>
                       </div>
                     </article>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </article>
