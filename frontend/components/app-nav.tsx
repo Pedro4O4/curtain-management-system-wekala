@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { MouseEvent, ReactNode, useEffect, useState } from 'react';
 import { useSession } from './use-session';
 
@@ -18,6 +18,7 @@ const links = [
 export function AppNav({ children }: AppNavProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { token, user, ready, logout } = useSession();
   const [saleRecordPickerOpen, setSaleRecordPickerOpen] = useState(false);
 
@@ -57,15 +58,29 @@ export function AppNav({ children }: AppNavProps) {
     router.push(selectedDate ? `/detailes/sales?date=${selectedDate}` : '/detailes/sales');
   }
 
+  function openWholesaleHistory() {
+    const selectedDate = window.localStorage.getItem('el-wekala-selected-date');
+    setSaleRecordPickerOpen(false);
+    router.push(selectedDate ? `/wholesale/history?date=${selectedDate}` : '/wholesale/history');
+  }
+
   // Active page info
   const activePage = links.find(l => l.href === pathname);
+  const isRetailSupplierRoute = pathname === '/retail-suppliers'
+    || (pathname.startsWith('/wholesale/') && searchParams.get('scope') === 'retail');
   const title = pathname === '/create'
     ? 'قطاعي'
     : pathname === '/details'
       ? 'ملخص اليوم'
       : pathname === '/products'
         ? 'أنواع الستائر'
-      : activePage?.label ?? 'الوكالة للستائر';
+        : isRetailSupplierRoute
+          ? 'موردين القطاعي'
+        : pathname === '/wholesale/history'
+          ? 'سجل الجملة'
+          : pathname.startsWith('/wholesale')
+            ? 'الجملة'
+            : activePage?.label ?? 'الوكالة للستائر';
   const subtitles: Record<string, string> = {
     '/all': 'سجّل يومك بسهولة ومن مكان واحد',
     '/create': 'بيع سريع وحركات الخزنة',
@@ -73,6 +88,13 @@ export function AppNav({ children }: AppNavProps) {
     '/detailes/sales': 'كل المبيعات التي تم تسجيلها',
     '/products': 'أنواع الستائر الجاهزة للاختيار عند البيع',
   };
+  const subtitle = isRetailSupplierRoute
+    ? 'تابع البضاعة والدفعات والتسوية مع كل مورد بشكل مستقل'
+    : pathname === '/wholesale/history'
+    ? 'كل حركات بضاعة ودفعات الجملة مجمعة حسب اليوم'
+    : pathname.startsWith('/wholesale')
+      ? 'حسابات العملاء والموردين وحركات البضاعة والدفعات'
+      : subtitles[pathname];
 
   return (
     <main className="app-shell">
@@ -80,7 +102,7 @@ export function AppNav({ children }: AppNavProps) {
         <div className="brand-section">
           <span className="brand-eyebrow">الوكالة للستائر</span>
           <h1 className="page-title">{title}</h1>
-          {subtitles[pathname] && <p className="page-subtitle">{subtitles[pathname]}</p>}
+          {subtitle && <p className="page-subtitle">{subtitle}</p>}
         </div>
         <div className="topbar-actions">
           {user && (
@@ -130,10 +152,10 @@ export function AppNav({ children }: AppNavProps) {
                 <strong>قطاعي</strong>
                 <small>عرض سجل مبيعات القطاعي</small>
               </button>
-              <button className="sale-picker-option wholesale" disabled type="button">
+              <button className="sale-picker-option wholesale" onClick={openWholesaleHistory} type="button">
                 <span aria-hidden="true">▦</span>
                 <strong>جملة</strong>
-                <small>قريبًا</small>
+                <small>عرض سجل حركات الجملة</small>
               </button>
             </div>
           </section>

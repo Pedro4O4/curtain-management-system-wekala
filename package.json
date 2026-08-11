@@ -10,6 +10,7 @@
     "dev": "concurrently \"npm run dev --workspace backend\" \"npm run dev --workspace frontend\"",
     "backend:dev": "npm run dev --workspace backend",
     "frontend:dev": "npm run dev --workspace frontend",
+    "qa:full": "node scripts/qa-full-flow.mjs",
     "build": "npm run build --workspace backend && npm run build --workspace frontend",
     "lint": "npm run lint --workspace backend && npm run lint --workspace frontend"
   },

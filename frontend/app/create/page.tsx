@@ -280,7 +280,7 @@ function CreateContent() {
                 <div className="sale-table-head" aria-hidden="true">
                   <span>الصنف</span>
                   <span>سعر المتر</span>
-                  <span>المتر</span>
+                  <span>عدد الأمتار</span>
                   <span />
                 </div>
                 {saleRows.map((row, index) => (
@@ -297,31 +297,37 @@ function CreateContent() {
                       value={row.item}
                     />
                     <label className="sr-only" htmlFor={`price-${row.id}`}>سعر المتر للصنف رقم {index + 1}</label>
-                    <div className="money-input no-suffix">
-                      <input
-                        className="form-input"
-                        dir="ltr"
-                        id={`price-${row.id}`}
-                        inputMode="decimal"
-                        min="0"
-                        onChange={(event) => updateSaleRow(row.id, 'price', event.target.value)}
-                        step="0.01"
-                        type="number"
-                        value={row.price}
-                      />
+                    <div className="sale-numeric-field price-field">
+                      <span>سعر المتر</span>
+                      <div className="money-input no-suffix">
+                        <input
+                          className="form-input"
+                          dir="ltr"
+                          id={`price-${row.id}`}
+                          inputMode="decimal"
+                          min="0"
+                          onChange={(event) => updateSaleRow(row.id, 'price', event.target.value)}
+                          step="0.01"
+                          type="number"
+                          value={row.price}
+                        />
+                      </div>
                     </div>
                     <label className="sr-only" htmlFor={`meters-${row.id}`}>عدد الأمتار للصنف رقم {index + 1}</label>
-                    <input
-                      className="form-input meters-input"
-                      dir="ltr"
-                      id={`meters-${row.id}`}
-                      inputMode="decimal"
-                      min="0.01"
-                      onChange={(event) => updateSaleRow(row.id, 'meters', event.target.value)}
-                      step="0.01"
-                      type="number"
-                      value={row.meters}
-                    />
+                    <div className="sale-numeric-field meter-field">
+                      <span>عدد الأمتار</span>
+                      <input
+                        className="form-input meters-input"
+                        dir="ltr"
+                        id={`meters-${row.id}`}
+                        inputMode="decimal"
+                        min="0.01"
+                        onChange={(event) => updateSaleRow(row.id, 'meters', event.target.value)}
+                        step="0.01"
+                        type="number"
+                        value={row.meters}
+                      />
+                    </div>
                     <button
                       aria-label={`حذف الصنف رقم ${index + 1}`}
                       className="remove-row"
