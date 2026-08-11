@@ -1,0 +1,686 @@
+.page {
+  display: grid;
+  gap: 22px;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: clamp(22px, 3vw, 34px);
+  border: 1px solid #9fc9c6;
+  border-radius: 22px;
+  background: linear-gradient(130deg, #fbffff 0%, #e2f4f1 100%);
+  box-shadow: 0 12px 28px rgba(22, 55, 68, 0.1);
+}
+
+.hero h2,
+.sectionTitle h3,
+.accountHeader h2,
+.formTitle {
+  margin: 5px 0 0;
+  color: #063e4b;
+  font-weight: 900;
+}
+
+.hero h2,
+.accountHeader h2 {
+  font-size: clamp(1.45rem, 2.8vw, 2rem);
+}
+
+.hero p,
+.helper,
+.accountSubtitle {
+  margin: 8px 0 0;
+  color: #52717e;
+  font-size: 0.93rem;
+  line-height: 1.7;
+}
+
+.heroLink,
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 17px;
+  border: 1px solid #78b8b3;
+  border-radius: 12px;
+  color: #075d58;
+  background: #f7fffe;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.kindSwitch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.choiceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.choiceCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 17px;
+  min-height: 180px;
+  padding: 26px;
+  border: 1.5px solid #a9ced3;
+  border-radius: 22px;
+  color: #174858;
+  background: linear-gradient(135deg, #faffff, #e4f5f3);
+  box-shadow: 0 12px 26px rgba(22, 78, 90, 0.09);
+  text-align: right;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.choiceCard:hover {
+  transform: translateY(-4px);
+  border-color: #087c74;
+  box-shadow: 0 18px 32px rgba(10, 78, 87, 0.16);
+}
+
+.choiceIcon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(135deg, #087c74, #07534f);
+  font-size: 1.4rem;
+}
+
+.supplierChoiceIcon {
+  background: linear-gradient(135deg, #176c87, #104c66);
+}
+
+.choiceCopy {
+  display: grid;
+  gap: 7px;
+}
+
+.choiceCopy strong {
+  color: #063e4b;
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+  font-weight: 900;
+}
+
+.choiceCopy small {
+  max-width: 27rem;
+  color: #54717b;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.75;
+}
+
+.choiceArrow {
+  color: #087c74;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.kindButton {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  min-height: 100px;
+  padding: 18px 20px;
+  border: 1px solid #c3d5da;
+  border-radius: 18px;
+  color: #274c5a;
+  background: #fff;
+  text-align: right;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.kindButton:hover {
+  transform: translateY(-2px);
+  border-color: #78b8b3;
+  box-shadow: 0 10px 24px rgba(23, 78, 90, 0.12);
+}
+
+.kindButtonActive {
+  border-color: #087c74;
+  background: linear-gradient(135deg, #effbf9, #dbf2ee);
+}
+
+.kindIcon {
+  display: inline-grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 15px;
+  color: #fff;
+  background: linear-gradient(135deg, #087c74, #07534f);
+  font-size: 1.25rem;
+}
+
+.kindButton strong,
+.accountCard strong,
+.actionButton strong {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.kindButton small,
+.accountCard small,
+.actionButton small {
+  display: block;
+  margin-top: 4px;
+  color: #617782;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.53fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.accountsPanel,
+.newPartyPanel,
+.accountSummary,
+.entryPanel,
+.ledgerPanel {
+  border: 1px solid #bdd0d8;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(22, 55, 68, 0.08);
+}
+
+.accountsPanel,
+.ledgerPanel {
+  overflow: hidden;
+}
+
+.panelHeader,
+.ledgerHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 21px 23px;
+  border-bottom: 1px solid #d3e1e5;
+}
+
+.sectionTitle h3,
+.formTitle {
+  font-size: 1.13rem;
+}
+
+.count {
+  display: inline-grid;
+  min-width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  color: #065f5a;
+  background: #def3f0;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.accountList {
+  display: grid;
+}
+
+.accountCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 18px 23px;
+  border: 0;
+  border-bottom: 1px solid #e0eaed;
+  color: #173e4e;
+  background: #fff;
+  text-align: right;
+  cursor: pointer;
+  transition: background 180ms ease;
+}
+
+.accountCard:hover {
+  background: #f4fbfa;
+}
+
+.accountCard:last-child {
+  border-bottom: 0;
+}
+
+.accountPhone {
+  margin-top: 5px;
+  color: #63808b;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.balanceBox {
+  min-width: 132px;
+  text-align: left;
+}
+
+.balanceBox span,
+.summaryLabel,
+.transactionMeta,
+.detailLabel {
+  display: block;
+  color: #597582;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.balanceBox b,
+.summaryAmount,
+.transactionTotal,
+.detailValue {
+  display: block;
+  margin-top: 5px;
+  color: #063e4b;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.balancePositive {
+  color: #a35a00 !important;
+}
+
+.balanceNegative {
+  color: #0d7246 !important;
+}
+
+.newPartyPanel {
+  padding: 23px;
+}
+
+.partyForm,
+.paymentForm,
+.tradeForm {
+  display: grid;
+  gap: 15px;
+}
+
+.formButton {
+  width: 100%;
+}
+
+.empty,
+.loading,
+.error {
+  padding: 40px 22px;
+  color: #607a86;
+  text-align: center;
+  font-weight: 700;
+}
+
+.error {
+  color: #a52d36;
+}
+
+.accountTopRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.accountHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.accountIcon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  color: #fff;
+  background: linear-gradient(135deg, #087c74, #07534f);
+  font-size: 1.28rem;
+}
+
+.accountSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  padding: 21px 24px;
+  border-color: #a8d1cd;
+  background: linear-gradient(120deg, #f8ffff, #e6f6f3);
+}
+
+.summaryAmount {
+  font-size: clamp(1.28rem, 3vw, 1.75rem);
+}
+
+.summaryDescription {
+  color: #52717e;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.actionsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.actionButton {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  min-height: 87px;
+  padding: 14px;
+  border: 1px solid #c5d8dd;
+  border-radius: 16px;
+  color: #204b5a;
+  background: #fff;
+  text-align: right;
+  cursor: pointer;
+}
+
+.actionButtonActive {
+  border-color: #087c74;
+  color: #07534f;
+  background: #e9f7f4;
+}
+
+.actionIcon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 11px;
+  color: #087c74;
+  background: #e1f2f0;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.entryPanel {
+  padding: 23px;
+}
+
+.entryHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.entryHeading h3 {
+  margin: 4px 0 0;
+  color: #063e4b;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.itemsArea {
+  display: grid;
+  gap: 10px;
+}
+
+.itemRow {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.45fr) minmax(104px, 0.72fr) minmax(104px, 0.65fr) minmax(94px, 0.58fr) 42px;
+  align-items: end;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #d2e1e5;
+  border-radius: 15px;
+  background: #fbfefe;
+}
+
+.numericField {
+  display: grid;
+  gap: 6px;
+}
+
+.numericField > span,
+.smallLabel {
+  color: #55717d;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.itemNameHelper {
+  color: #637c86;
+  font-size: 0.69rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.removeButton {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid #efc4c8;
+  border-radius: 11px;
+  color: #af313b;
+  background: #fff6f6;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.removeButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.addItemButton {
+  justify-self: start;
+  padding: 8px 0;
+  border: 0;
+  color: #087c74;
+  background: transparent;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.totalsBox {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid #b9ddd8;
+  border-radius: 15px;
+  background: #f0faf8;
+}
+
+.totalsBox > div {
+  padding: 14px;
+}
+
+.totalsBox > div + div {
+  border-inline-start: 1px solid #cce2df;
+}
+
+.totalsBox strong {
+  display: block;
+  margin-top: 5px;
+  color: #063e4b;
+  font-size: 1.03rem;
+  font-weight: 900;
+}
+
+.due strong {
+  color: #a35a00;
+}
+
+.ledgerList {
+  display: grid;
+}
+
+.transaction {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 18px 23px;
+  border-bottom: 1px solid #e0eaed;
+}
+
+.transaction:last-child {
+  border-bottom: 0;
+}
+
+.transactionTitle {
+  margin: 0;
+  color: #0b4351;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.transactionMeta {
+  margin-top: 6px;
+}
+
+.transactionItems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.itemPill {
+  padding: 5px 8px;
+  border-radius: 8px;
+  color: #456773;
+  background: #edf5f6;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.transactionSide {
+  min-width: 120px;
+  text-align: left;
+}
+
+.transactionEffect {
+  display: block;
+  margin-top: 7px;
+  color: #a35a00;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.transactionEffectSettled {
+  color: #0d7246;
+}
+
+@media (max-width: 760px) {
+  .hero,
+  .accountTopRow,
+  .accountSummary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hero,
+  .accountTopRow {
+    display: flex;
+  }
+
+  .heroLink,
+  .backButton {
+    width: 100%;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .choiceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .newPartyPanel {
+    order: -1;
+  }
+
+  .itemRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px;
+  }
+
+  .itemRow > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .itemRow > :nth-child(4) {
+    grid-column: 1 / span 2;
+  }
+
+  .itemRow > .removeButton {
+    grid-column: 3;
+    grid-row: 3;
+  }
+
+  .totalsBox {
+    grid-template-columns: 1fr;
+  }
+
+  .totalsBox > div + div {
+    border-top: 1px solid #cce2df;
+    border-inline-start: 0;
+  }
+}
+
+@media (max-width: 460px) {
+  .kindSwitch,
+  .actionsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .choiceCard {
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: 148px;
+    padding: 20px;
+  }
+
+  .choiceArrow {
+    display: none;
+  }
+
+  .panelHeader,
+  .ledgerHeader,
+  .entryPanel,
+  .newPartyPanel {
+    padding: 18px;
+  }
+
+  .accountCard,
+  .transaction {
+    padding: 15px 17px;
+  }
+
+  .accountCard {
+    grid-template-columns: 1fr;
+  }
+
+  .balanceBox,
+  .transactionSide {
+    text-align: right;
+  }
+}

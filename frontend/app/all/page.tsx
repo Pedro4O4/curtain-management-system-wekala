@@ -59,6 +59,14 @@ export default function AllPage() {
     router.push(`/create?mode=${mode}&date=${selectedDate}`);
   }
 
+  function openWholesale() {
+    router.push(selectedDate ? `/wholesale?date=${selectedDate}` : '/wholesale');
+  }
+
+  function openRetailSuppliers() {
+    router.push(selectedDate ? `/retail-suppliers?date=${selectedDate}` : '/retail-suppliers');
+  }
+
   if (!ready) return null;
 
   return (
@@ -108,16 +116,16 @@ export default function AllPage() {
               <span className="selected-mark" aria-hidden="true">✓</span>
             </button>
             <button
-              className="business-card coming-soon"
-              onClick={() => showToast('قسم الجملة سيكون متاحًا قريبًا.', 'info')}
+              className="business-card wholesale-active"
+              onClick={openWholesale}
               type="button"
             >
-              <span className="business-icon muted" aria-hidden="true">▦</span>
+              <span className="business-icon" aria-hidden="true">▦</span>
               <span>
                 <strong>جملة</strong>
-                <small>قريبًا</small>
+                <small>حسابات العملاء والموردين</small>
               </span>
-              <span className="soon-badge">قريبًا</span>
+              <span className="action-arrow" aria-hidden="true">‹</span>
             </button>
           </div>
         </section>
@@ -134,7 +142,7 @@ export default function AllPage() {
               </button>
             )}
           </div>
-          <div className="quick-actions">
+          <div className="quick-actions retail-actions-with-suppliers">
             <button className="quick-action sale-action" disabled={!selectedDate} onClick={() => openCreate('sale')} type="button">
               <span className="quick-action-icon" aria-hidden="true">+</span>
               <span>
@@ -148,6 +156,14 @@ export default function AllPage() {
               <span>
                 <strong>الخزنة</strong>
                 <small>دخل أو خرج غير مرتبط ببيعة</small>
+              </span>
+              <span className="action-arrow" aria-hidden="true">‹</span>
+            </button>
+            <button className="quick-action supplier-account-action" disabled={!selectedDate} onClick={openRetailSuppliers} type="button">
+              <span className="quick-action-icon" aria-hidden="true">▦</span>
+              <span>
+                <strong>حساب الموردين</strong>
+                <small>تابع البضاعة والدفعات مع كل مورد</small>
               </span>
               <span className="action-arrow" aria-hidden="true">‹</span>
             </button>

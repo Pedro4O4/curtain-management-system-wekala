@@ -11,6 +11,10 @@ import { RecordsService } from './records/records.service';
 import { Product, ProductSchema } from './products/product.schema';
 import { ProductsController } from './products/products.controller';
 import { ProductsService } from './products/products.service';
+import { WholesaleParty, WholesalePartySchema } from './wholesale/wholesale-party.schema';
+import { WholesaleTransaction, WholesaleTransactionSchema } from './wholesale/wholesale-transaction.schema';
+import { WholesaleController } from './wholesale/wholesale.controller';
+import { WholesaleService } from './wholesale/wholesale.service';
 import { User, UserSchema } from './users/user.schema';
 import { UsersService } from './users/users.service';
 
@@ -20,7 +24,9 @@ import { UsersService } from './users/users.service';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: DailyRecord.name, schema: DailyRecordSchema },
-      { name: Product.name, schema: ProductSchema }
+      { name: Product.name, schema: ProductSchema },
+      { name: WholesaleParty.name, schema: WholesalePartySchema },
+      { name: WholesaleTransaction.name, schema: WholesaleTransactionSchema }
     ]),
     MongooseModule.forRootAsync({
       inject: [ConfigService],
@@ -29,7 +35,7 @@ import { UsersService } from './users/users.service';
       })
     })
   ],
-  controllers: [AppController, AuthController, RecordsController, ProductsController],
-  providers: [AppService, UsersService, AuthService, RecordsService, ProductsService]
+  controllers: [AppController, AuthController, RecordsController, ProductsController, WholesaleController],
+  providers: [AppService, UsersService, AuthService, RecordsService, ProductsService, WholesaleService]
 })
 export class AppModule {}
