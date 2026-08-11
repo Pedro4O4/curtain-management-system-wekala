@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { ToastProvider } from '../components/toast-context';
 import './globals.css';
 
@@ -13,7 +13,9 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     <html lang="ar" dir="rtl">
       <body>
         <ToastProvider>
-          {children}
+          <Suspense fallback={<main className="app-shell app-loading"><div className="skeleton skeleton-line lg" /></main>}>
+            {children}
+          </Suspense>
         </ToastProvider>
       </body>
     </html>
